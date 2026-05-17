@@ -1,0 +1,10 @@
+node_modules/
+.wxt/
+.output/
+dist/
+*.log
+.DS_Store
+playwright-report/
+test-results/
+.env
+.env.local
