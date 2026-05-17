@@ -1,5 +1,5 @@
-import { defineConfig } from "wxt";
 import preact from "@preact/preset-vite";
+import { defineConfig } from "wxt";
 
 export default defineConfig({
   vite: () => ({
@@ -8,14 +8,7 @@ export default defineConfig({
   manifest: {
     name: "Plume — Micropub Client",
     description: "Post to your Micropub-compatible blog from anywhere in the browser.",
-    permissions: [
-      "storage",
-      "contextMenus",
-      "identity",
-      "activeTab",
-      "notifications",
-      "alarms",
-    ],
+    permissions: ["storage", "contextMenus", "identity", "activeTab", "notifications", "alarms"],
     optional_host_permissions: ["<all_urls>"],
     action: {
       default_title: "Plume",
