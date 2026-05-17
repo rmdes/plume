@@ -3,6 +3,7 @@ node_modules/
 .output/
 dist/
 *.log
+*.zip
 .DS_Store
 playwright-report/
 test-results/
