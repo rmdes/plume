@@ -24,10 +24,12 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
     "@playwright/test": "^1.48.0",
+    "@preact/preset-vite": "^2.10.0",
     "@types/chrome": "^0.0.270",
     "@types/firefox-webext-browser": "^120.0.0",
     "@types/node": "^22.0.0",
-    "@preact/preset-vite": "^2.10.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0",
     "wxt": "^0.19.0"
