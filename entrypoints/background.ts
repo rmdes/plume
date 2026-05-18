@@ -35,31 +35,42 @@ export default defineBackground(() => {
         await chrome.contextMenus.removeAll();
         const active = await accountStore().getActive();
         const hasMedia = !!active?.media_endpoint;
-        await Promise.all(
-          MENU_ITEMS.filter((item) => !(item.id === "plume-post-image" && !hasMedia)).map(
-            (item) =>
-              new Promise<void>((resolve) => {
-                chrome.contextMenus.create(
-                  {
-                    id: item.id,
-                    title: item.title,
-                    contexts: item.contexts,
-                    parentId: item.parentId,
-                  },
-                  () => {
-                    // Swallow duplicate-id errors silently — they only
-                    // happen if a concurrent path somehow slipped through.
-                    void chrome.runtime.lastError;
-                    resolve();
-                  },
-                );
-              }),
-          ),
-        );
+        // Create the parent first (children reference it via parentId),
+        // then children sequentially. Sequential creates avoid the
+        // parallel race that occasionally hit duplicate-id on parent
+        // when SW restarts interleaved refresh cycles.
+        for (const item of MENU_ITEMS) {
+          if (item.id === "plume-post-image" && !hasMedia) continue;
+          await createMenuItem(item);
+        }
       } while (menuRefreshPending);
     } finally {
       menuRefreshRunning = false;
     }
+  }
+
+  function createMenuItem(item: (typeof MENU_ITEMS)[number]): Promise<void> {
+    return new Promise((resolve) => {
+      chrome.contextMenus.create(
+        {
+          id: item.id,
+          title: item.title,
+          contexts: item.contexts,
+          parentId: item.parentId,
+        },
+        () => {
+          // Explicit access marks lastError as "checked" so the runtime
+          // doesn't log an "Unchecked runtime.lastError" warning.
+          // Duplicate-id errors are expected during SW-restart races and
+          // are functionally harmless (the item already exists).
+          const err = chrome.runtime.lastError;
+          if (err && !/duplicate id/i.test(err.message ?? "")) {
+            console.warn(`[plume] contextMenus.create(${item.id}):`, err.message);
+          }
+          resolve();
+        },
+      );
+    });
   }
 
   const QUEUE_ALARM = "plume-queue-tick";
