@@ -3,6 +3,7 @@ import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
 import type { CreateOptions, PostType, TokenData } from "../../core/types";
 import { useComposerState } from "./useComposerState";
+import { useDraftAutosave } from "./useDraftAutosave";
 
 interface Props {
   account: TokenData;
@@ -51,6 +52,13 @@ export function Composer({ account, seed, onPosted, onError }: Props) {
     const field = targetFieldFor(state.type);
     patch({ [field]: targetUrl } as Partial<typeof state>);
   }, [targetUrl, state.type, patch]);
+
+  const scope = state.bookmarkOf ?? state.inReplyTo ?? state.likeOf ?? state.repostOf ?? "general";
+  useDraftAutosave({
+    domain: new URL(account.me).hostname,
+    scope,
+    state,
+  });
 
   async function handleSubmit(e: Event) {
     e.preventDefault();

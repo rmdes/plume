@@ -3,7 +3,7 @@ import { useEffect, useState } from "preact/hooks";
 import { CLIENT_ID } from "../../core/auth-config";
 import { refreshToken } from "../../core/indieauth";
 import type { CreateOptions, PostType, TokenData } from "../../core/types";
-import { accountStore, sessionStorage } from "../../storage";
+import { accountStore, draftStore, sessionStorage } from "../../storage";
 import { Composer } from "./Composer";
 
 const PREFILL_KEY = "pendingPrefill";
@@ -21,12 +21,20 @@ function Popup() {
     (async () => {
       const a = await accountStore().getActiveRefreshed((tok) => refreshToken(tok, CLIENT_ID));
       setAccount(a);
-      const pre = await sessionStorage().get<PrefillState>(PREFILL_KEY);
-      if (pre) {
-        setPrefill(pre);
-        await sessionStorage().remove(PREFILL_KEY);
-      } else {
+      if (!a) {
         setPrefill({});
+        return;
+      }
+      const pre = (await sessionStorage().get<PrefillState>(PREFILL_KEY)) ?? {};
+      await sessionStorage().remove(PREFILL_KEY);
+
+      const domain = new URL(a.me).hostname;
+      const scope = pre.bookmarkOf ?? pre.inReplyTo ?? pre.likeOf ?? pre.repostOf ?? "general";
+      const draft = await draftStore().load(domain, scope);
+      if (draft && !pre.content) {
+        setPrefill({ ...pre, ...draft });
+      } else {
+        setPrefill(pre);
       }
     })();
   }, []);
@@ -76,7 +84,15 @@ function Popup() {
       <Composer
         account={account}
         seed={prefill}
-        onPosted={(loc) => {
+        onPosted={async (loc) => {
+          const domain = new URL(account.me).hostname;
+          const scope =
+            prefill.bookmarkOf ??
+            prefill.inReplyTo ??
+            prefill.likeOf ??
+            prefill.repostOf ??
+            "general";
+          await draftStore().remove(domain, scope);
           setToast(`Posted ✓ ${loc}`);
           setTimeout(() => window.close(), 800);
         }}
