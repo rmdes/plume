@@ -1,7 +1,14 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "files": {
-    "ignore": [".wxt", ".output", "node_modules", "playwright-report", "test-results"]
+    "includes": [
+      "**",
+      "!**/.wxt",
+      "!**/.output",
+      "!**/node_modules",
+      "!**/playwright-report",
+      "!**/test-results"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -14,7 +21,7 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noConsoleLog": "warn"
+        "noConsole": { "level": "warn", "options": { "allow": ["log"] } }
       },
       "style": {
         "useImportType": "error",
