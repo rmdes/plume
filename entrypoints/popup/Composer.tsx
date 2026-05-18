@@ -69,6 +69,7 @@ export function Composer({
 }: Props) {
   const { state, patch, setType } = useComposerState(seed);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [aiDefaults, setAiDefaults] = useState<Record<string, string | undefined>>({});
   useEffect(() => {
     defaultsStore()
@@ -171,6 +172,49 @@ export function Composer({
             }}
           />
         </figure>
+      )}
+
+      {state.type === "photo" && !state.photo?.[0] && (
+        <label
+          style={{
+            display: "grid",
+            gap: 4,
+            padding: 12,
+            border: "1px dashed #ccc",
+            borderRadius: 4,
+            fontSize: 13,
+            textAlign: "center",
+            cursor: uploading ? "wait" : "pointer",
+          }}
+        >
+          {uploading ? "Uploading…" : "Choose an image to upload"}
+          <input
+            type="file"
+            accept="image/*"
+            disabled={uploading}
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const target = e.currentTarget as HTMLInputElement;
+              const file = target.files?.[0];
+              if (!file) return;
+              setUploading(true);
+              try {
+                const client = new MicropubClient({
+                  micropubEndpoint: account.micropub_endpoint,
+                  mediaEndpoint: account.media_endpoint,
+                  token: account.access_token,
+                });
+                const url = await client.uploadMedia(file, file.name);
+                patch({ photo: [url] });
+              } catch (err) {
+                onError(err instanceof Error ? err.message : String(err));
+              } finally {
+                setUploading(false);
+                target.value = "";
+              }
+            }}
+          />
+        </label>
       )}
 
       {needsTarget && (

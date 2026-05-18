@@ -226,6 +226,28 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
     await chrome.action.openPopup();
     return;
   }
+  // Request host permission for the image's origin if not already granted.
+  // The contextMenus.onClicked event qualifies as a user gesture, so
+  // chrome.permissions.request can prompt the user.
+  try {
+    const imageOrigin = `${new URL(srcUrl).origin}/*`;
+    const hasOrigin = await chrome.permissions.contains({ origins: [imageOrigin] });
+    if (!hasOrigin) {
+      const granted = await chrome.permissions.request({ origins: [imageOrigin] });
+      if (!granted) {
+        await sessionStorage().set({
+          [PREFILL_KEY]: {
+            ...prefill,
+            _media_error: `Permission denied for ${new URL(srcUrl).hostname}. Image not uploaded.`,
+          },
+        });
+        await chrome.action.openPopup();
+        return;
+      }
+    }
+  } catch {
+    // permission API failure — fall through and let the fetch fail with its own error
+  }
   try {
     const blob = await fetchImageAsBlob(srcUrl);
     const filename = filenameFromUrl(srcUrl);
