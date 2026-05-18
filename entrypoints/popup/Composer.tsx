@@ -199,9 +199,29 @@ export function Composer({
               if (!file) return;
               setUploading(true);
               try {
+                // Self-heal: if account.media_endpoint is missing (server didn't
+                // advertise it via <link> tag on the homepage), look it up via
+                // ?q=config which fetchAndCacheServerConfig will write back to
+                // the account record for next time.
+                let mediaEndpoint = account.media_endpoint;
+                if (!mediaEndpoint) {
+                  const { fetchAndCacheServerConfig } = await import(
+                    "../../core/server-config"
+                  );
+                  const { accountStore } = await import("../../storage");
+                  const domain = new URL(account.me).hostname;
+                  const config = await fetchAndCacheServerConfig(accountStore(), domain);
+                  mediaEndpoint = config["media-endpoint"];
+                  if (!mediaEndpoint) {
+                    throw new Error(
+                      `Server at ${domain} has no media-endpoint configured. ` +
+                        "Add one to your Indiekit config or check ?q=config response.",
+                    );
+                  }
+                }
                 const client = new MicropubClient({
                   micropubEndpoint: account.micropub_endpoint,
-                  mediaEndpoint: account.media_endpoint,
+                  mediaEndpoint,
                   token: account.access_token,
                 });
                 const url = await client.uploadMedia(file, file.name);

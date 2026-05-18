@@ -210,7 +210,21 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
     await openPopupSafe();
     return;
   }
-  if (!account.media_endpoint) {
+  // Self-heal: if account.media_endpoint is missing, look it up via ?q=config.
+  // The site may not declare <link rel="media-endpoint"> on its homepage but
+  // advertises it in the Micropub config response.
+  let mediaEndpoint = account.media_endpoint;
+  if (!mediaEndpoint) {
+    try {
+      const { fetchAndCacheServerConfig } = await import("../core/server-config");
+      const domain = new URL(account.me).hostname;
+      const config = await fetchAndCacheServerConfig(accountStore(), domain);
+      mediaEndpoint = config["media-endpoint"];
+    } catch {
+      // fall through to the missing-media-endpoint error path
+    }
+  }
+  if (!mediaEndpoint) {
     await sessionStorage().set({
       [PREFILL_KEY]: {
         ...prefill,
@@ -253,7 +267,7 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
     const filename = filenameFromUrl(srcUrl);
     const client = new MicropubClient({
       micropubEndpoint: account.micropub_endpoint,
-      mediaEndpoint: account.media_endpoint,
+      mediaEndpoint,
       token: account.access_token,
     });
     const uploadedUrl = await client.uploadMedia(blob, filename);

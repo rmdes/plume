@@ -42,8 +42,14 @@ export async function fetchAndCacheServerConfig(
       (configRes as ServerConfig | null)?.["post-types"],
   };
 
+  // If the server's ?q=config advertises a media-endpoint and the account
+  // didn't have one (e.g., the site doesn't declare <link rel="media-endpoint">
+  // on its homepage and discovery only found micropub + auth endpoints),
+  // write it back to the account so future uploads find it without re-fetching.
+  const discoveredMediaEndpoint = merged["media-endpoint"];
   const updated = {
     ...account,
+    media_endpoint: account.media_endpoint ?? discoveredMediaEndpoint,
     cached_config: merged,
     cached_categories: (categoriesRes as { categories?: string[] })?.categories ?? [],
     cached_at: new Date().toISOString(),
