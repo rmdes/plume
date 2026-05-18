@@ -1,4 +1,4 @@
-import type { CreateOptions, CreateResult, UpdateOptions } from "./types";
+import type { CreateOptions, CreateResult, QueryOptions, UpdateOptions } from "./types";
 
 export interface MicropubClientConfig {
   micropubEndpoint: string;
@@ -109,5 +109,42 @@ export class MicropubClient {
       body: JSON.stringify({ action: "undelete", url }),
     });
     await this.checkError(response);
+  }
+
+  async query(options: QueryOptions): Promise<unknown> {
+    const url = new URL(this.endpoint);
+    url.searchParams.set("q", options.q);
+    if (options.url) url.searchParams.set("url", options.url);
+    if (options.limit !== undefined) url.searchParams.set("limit", String(options.limit));
+    if (options.offset !== undefined) url.searchParams.set("offset", String(options.offset));
+    if (options.properties) {
+      for (const prop of options.properties) {
+        url.searchParams.append("properties[]", prop);
+      }
+    }
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${this.token}`, Accept: "application/json" },
+    });
+    await this.checkError(response);
+    return response.json();
+  }
+
+  async uploadMedia(blob: Blob, filename: string): Promise<string> {
+    if (!this.mediaEndpoint) {
+      throw new Error("No media endpoint configured. Query ?q=config to check.");
+    }
+    const formData = new FormData();
+    formData.append("file", blob, filename);
+    const response = await fetch(this.mediaEndpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.token}` },
+      body: formData,
+    });
+    await this.checkError(response);
+    const location = response.headers.get("Location");
+    if (!location) {
+      throw new Error("Media endpoint returned success but no Location header");
+    }
+    return location;
   }
 }

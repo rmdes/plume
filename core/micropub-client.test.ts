@@ -165,3 +165,65 @@ describe("MicropubClient.delete and undelete", () => {
     expect(body).toEqual({ action: "undelete", url: "https://example.com/post/1" });
   });
 });
+
+describe("MicropubClient.query", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("queries config", async () => {
+    const expected = { "media-endpoint": "https://example.com/media" };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify(expected), { status: 200 }));
+    const client = new MicropubClient(config);
+    const result = await client.query({ q: "config" });
+    expect(result).toEqual(expected);
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("no fetch call recorded");
+    expect(String(call[0])).toContain("?q=config");
+  });
+
+  it("queries source with url + properties", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+    const client = new MicropubClient(config);
+    await client.query({
+      q: "source",
+      url: "https://example.com/post/1",
+      properties: ["content", "name"],
+    });
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("no fetch call recorded");
+    const url = String(call[0]);
+    expect(url).toContain("q=source");
+    expect(url).toContain("url=https");
+    expect(url).toContain("properties%5B%5D=content");
+    expect(url).toContain("properties%5B%5D=name");
+  });
+});
+
+describe("MicropubClient.uploadMedia", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("uploads a Blob and returns Location URL", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 201,
+        headers: { Location: "https://example.com/files/abc.png" },
+      }),
+    );
+    const client = new MicropubClient(config);
+    const blob = new Blob(["fake-image-data"], { type: "image/png" });
+    const url = await client.uploadMedia(blob, "photo.png");
+    expect(url).toBe("https://example.com/files/abc.png");
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("no fetch call recorded");
+    expect(call[0]).toBe("https://example.com/media");
+  });
+
+  it("throws when media endpoint not configured", async () => {
+    const client = new MicropubClient({ ...config, mediaEndpoint: undefined });
+    const blob = new Blob([], { type: "image/png" });
+    await expect(client.uploadMedia(blob, "x.png")).rejects.toThrow(/No media endpoint/);
+  });
+});
