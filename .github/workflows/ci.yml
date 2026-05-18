@@ -16,6 +16,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
+      - run: bun run lint:fetch
       - run: bun run test
       - run: bun run build
       - run: bun run build:firefox

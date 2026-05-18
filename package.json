@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && prettier --check .",
+    "lint:fetch": "bun scripts/lint-fetch.ts",
     "lint:fix": "eslint . --fix && prettier --write .",
     "postinstall": "wxt prepare"
   },
