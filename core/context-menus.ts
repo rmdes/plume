@@ -1,4 +1,4 @@
-import type { CreateOptions, PostType } from "../core/types";
+import type { CreateOptions, PostType } from "./types";
 
 export interface MenuItemDef {
   id: string;
