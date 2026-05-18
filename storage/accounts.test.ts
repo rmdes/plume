@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TokenData } from "../core/types";
 import { AccountStore } from "./accounts";
 import { FakeBrowserStorage } from "./browser-storage";
@@ -84,5 +84,46 @@ describe("AccountStore", () => {
     await store.add(fakeToken("https://rmendes.net/"));
     const acct = await store.get("rmendes.net");
     expect(acct?.me).toBe("https://rmendes.net/");
+  });
+});
+
+describe("AccountStore.getActiveRefreshed", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-17T14:30:00.000Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("returns token as-is when not near expiry", async () => {
+    const s = new AccountStore(new FakeBrowserStorage());
+    const token = {
+      ...fakeToken("https://rmendes.net/"),
+      expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+    };
+    await s.add(token);
+    const refreshFn = vi.fn();
+    const active = await s.getActiveRefreshed(refreshFn);
+    expect(active?.access_token).toBe(token.access_token);
+    expect(refreshFn).not.toHaveBeenCalled();
+  });
+
+  it("calls refresher and stores updated token when near expiry", async () => {
+    const s = new AccountStore(new FakeBrowserStorage());
+    const expired = {
+      ...fakeToken("https://rmendes.net/"),
+      expires_at: new Date(Date.now() - 1000).toISOString(),
+      refresh_token: "refresh-abc",
+    };
+    await s.add(expired);
+    const refreshFn = vi.fn().mockResolvedValue({
+      ...expired,
+      access_token: "new-token",
+      expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+    });
+    const active = await s.getActiveRefreshed(refreshFn);
+    expect(active?.access_token).toBe("new-token");
+    expect(refreshFn).toHaveBeenCalledOnce();
+    const reread = await s.get("rmendes.net");
+    expect(reread?.access_token).toBe("new-token");
   });
 });

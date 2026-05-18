@@ -89,4 +89,21 @@ export class AccountStore {
     all[domain] = token;
     await this.storage.set({ [ACCOUNTS_KEY]: all });
   }
+
+  async getActiveRefreshed(
+    refresher: (existing: TokenData) => Promise<TokenData>,
+  ): Promise<TokenData | null> {
+    const active = await this.getActive();
+    if (!active) return null;
+    const { isExpired } = await import("../core/indieauth");
+    if (!isExpired(active)) return active;
+    if (!active.refresh_token) return active; // no refresh possible; caller handles 401
+    try {
+      const refreshed = await refresher(active);
+      await this.update(new URL(refreshed.me).hostname, refreshed);
+      return refreshed;
+    } catch {
+      return active; // return stale; caller will 401 and we'll surface auth_needed
+    }
+  }
 }
