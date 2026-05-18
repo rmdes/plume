@@ -205,9 +205,7 @@ export function Composer({
                 // the account record for next time.
                 let mediaEndpoint = account.media_endpoint;
                 if (!mediaEndpoint) {
-                  const { fetchAndCacheServerConfig } = await import(
-                    "../../core/server-config"
-                  );
+                  const { fetchAndCacheServerConfig } = await import("../../core/server-config");
                   const { accountStore } = await import("../../storage");
                   const domain = new URL(account.me).hostname;
                   const config = await fetchAndCacheServerConfig(accountStore(), domain);
