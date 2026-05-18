@@ -1,4 +1,5 @@
 import { buildPrefillFromContextInfo, MENU_ITEMS } from "../core/context-menus";
+import { fetchPageTitle } from "../core/page-title";
 import { sessionStorage } from "../storage";
 
 const PREFILL_KEY = "pendingPrefill";
@@ -37,21 +38,6 @@ export default defineBackground(() => {
     await chrome.action.openPopup();
   });
 });
-
-async function fetchPageTitle(url: string, timeoutMs = 2000): Promise<string> {
-  const controller = new AbortController();
-  const handle = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { signal: controller.signal, redirect: "follow" });
-    const html = await response.text();
-    const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-    return match?.[1]?.trim() ?? "";
-  } catch {
-    return "";
-  } finally {
-    clearTimeout(handle);
-  }
-}
 
 // Placeholder — full implementation in Phase 6
 async function handleImagePost(prefill: { _pending_media_fetch?: string }): Promise<void> {
