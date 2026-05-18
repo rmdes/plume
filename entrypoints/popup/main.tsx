@@ -2,7 +2,8 @@ import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { CLIENT_ID } from "../../core/auth-config";
 import { refreshToken } from "../../core/indieauth";
-import type { CreateOptions, PostType, TokenData } from "../../core/types";
+import { fetchAndCacheServerConfig } from "../../core/server-config";
+import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import { accountStore, draftStore, sessionStorage } from "../../storage";
 import { Composer } from "./Composer";
 
@@ -15,6 +16,7 @@ interface PrefillState extends Partial<CreateOptions> {
 function Popup() {
   const [account, setAccount] = useState<TokenData | null | undefined>(undefined);
   const [prefill, setPrefill] = useState<PrefillState | null>(null);
+  const [config, setConfig] = useState<ServerConfig | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,6 +27,10 @@ function Popup() {
         setPrefill({});
         return;
       }
+      // Kick off server config fetch (non-blocking)
+      fetchAndCacheServerConfig(accountStore(), new URL(a.me).hostname)
+        .then(setConfig)
+        .catch(() => setConfig({}));
       const pre = (await sessionStorage().get<PrefillState>(PREFILL_KEY)) ?? {};
       await sessionStorage().remove(PREFILL_KEY);
 
@@ -97,9 +103,23 @@ function Popup() {
           ⚠ {mediaError}
         </div>
       )}
+      {config === null && (
+        <div
+          style={{
+            padding: "4px 12px",
+            fontSize: 11,
+            color: "#999",
+            textAlign: "center",
+            borderBottom: "1px solid #eee",
+          }}
+        >
+          Connecting to {new URL(account.me).hostname}…
+        </div>
+      )}
       <Composer
         account={account}
         seed={prefill}
+        serverConfig={config ?? undefined}
         onPosted={async (loc) => {
           const domain = new URL(account.me).hostname;
           const scope =
