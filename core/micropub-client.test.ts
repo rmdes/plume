@@ -110,3 +110,58 @@ describe("MicropubClient.create", () => {
     await expect(client.create({ content: "x" })).rejects.toThrow(/invalid_request: Bad/);
   });
 });
+
+describe("MicropubClient.update", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("posts update action with replace + add + delete", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    const client = new MicropubClient(config);
+    await client.update({
+      url: "https://example.com/post/1",
+      replace: { content: ["new content"] },
+      add: { category: ["new-tag"] },
+      delete: ["summary"],
+    });
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const body = JSON.parse((call[1] as RequestInit).body as string);
+    expect(body).toEqual({
+      action: "update",
+      url: "https://example.com/post/1",
+      replace: { content: ["new content"] },
+      add: { category: ["new-tag"] },
+      delete: ["summary"],
+    });
+  });
+});
+
+describe("MicropubClient.delete and undelete", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("posts delete action", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    const client = new MicropubClient(config);
+    await client.delete("https://example.com/post/1");
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const body = JSON.parse((call[1] as RequestInit).body as string);
+    expect(body).toEqual({ action: "delete", url: "https://example.com/post/1" });
+  });
+
+  it("posts undelete action", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    const client = new MicropubClient(config);
+    await client.undelete("https://example.com/post/1");
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const body = JSON.parse((call[1] as RequestInit).body as string);
+    expect(body).toEqual({ action: "undelete", url: "https://example.com/post/1" });
+  });
+});

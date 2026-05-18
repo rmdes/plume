@@ -1,4 +1,4 @@
-import type { CreateOptions, CreateResult } from "./types";
+import type { CreateOptions, CreateResult, UpdateOptions } from "./types";
 
 export interface MicropubClientConfig {
   micropubEndpoint: string;
@@ -78,5 +78,36 @@ export class MicropubClient {
       throw new Error("Server returned success but no Location header");
     }
     return { location, status: response.status };
+  }
+
+  async update(options: UpdateOptions): Promise<void> {
+    const body: Record<string, unknown> = { action: "update", url: options.url };
+    if (options.replace) body.replace = options.replace;
+    if (options.add) body.add = options.add;
+    if (options.delete) body.delete = options.delete;
+    const response = await fetch(this.endpoint, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    await this.checkError(response);
+  }
+
+  async delete(url: string): Promise<void> {
+    const response = await fetch(this.endpoint, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify({ action: "delete", url }),
+    });
+    await this.checkError(response);
+  }
+
+  async undelete(url: string): Promise<void> {
+    const response = await fetch(this.endpoint, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify({ action: "undelete", url }),
+    });
+    await this.checkError(response);
   }
 }
