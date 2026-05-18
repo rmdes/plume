@@ -1,4 +1,5 @@
 import { CLIENT_ID } from "../core/auth-config";
+import { computeBadgeState } from "../core/badge";
 import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
 import { fetchImageAsBlob, filenameFromUrl, ImageFetchError } from "../core/image-fetch";
 import { refreshToken } from "../core/indieauth";
@@ -37,6 +38,11 @@ export default defineBackground(() => {
     refreshMenus();
     chrome.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 });
     chrome.alarms.create(TOKEN_ALARM, { periodInMinutes: 1440 });
+    updateBadge();
+  });
+
+  chrome.runtime.onStartup.addListener(() => {
+    updateBadge();
   });
 
   chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -55,6 +61,7 @@ export default defineBackground(() => {
         refresher: (existing) => refreshToken(existing, CLIENT_ID),
         notify: handleNotify,
       });
+      await updateBadge();
     } else if (alarm.name === TOKEN_ALARM) {
       await proactiveRefreshAll();
     }
@@ -65,6 +72,10 @@ export default defineBackground(() => {
     if (changes.accounts || changes.defaults) {
       // biome-ignore lint/suspicious/noConsole: legitimate background error logging
       refreshMenus().catch((e) => console.error("refreshMenus failed", e));
+    }
+    if (changes.queue) {
+      // biome-ignore lint/suspicious/noConsole: legitimate background error logging
+      updateBadge().catch((e) => console.error("updateBadge failed", e));
     }
   });
 
@@ -88,6 +99,16 @@ export default defineBackground(() => {
     await chrome.action.openPopup();
   });
 });
+
+async function updateBadge(): Promise<void> {
+  const queue = queueStoreFactory();
+  const state = computeBadgeState({
+    hasAuthNeeded: await queue.hasAuthNeeded(),
+    queueCount: await queue.count(),
+  });
+  await chrome.action.setBadgeText({ text: state.text });
+  await chrome.action.setBadgeBackgroundColor({ color: state.color });
+}
 
 async function handleNotify(event: NotifyEvent): Promise<void> {
   const defaults = await defaultsStore().get();
