@@ -136,7 +136,7 @@ export default defineBackground(() => {
       prefill.name = await fetchPageTitle(info.linkUrl);
     }
     await sessionStorage().set({ [PREFILL_KEY]: prefill });
-    await chrome.action.openPopup();
+    await openPopupSafe();
   });
 });
 
@@ -207,7 +207,7 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
     await sessionStorage().set({
       [PREFILL_KEY]: { ...prefill, _media_error: "No account connected." },
     });
-    await chrome.action.openPopup();
+    await openPopupSafe();
     return;
   }
   if (!account.media_endpoint) {
@@ -217,13 +217,13 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
         _media_error: `Account ${new URL(account.me).hostname} has no media endpoint configured.`,
       },
     });
-    await chrome.action.openPopup();
+    await openPopupSafe();
     return;
   }
   const srcUrl = prefill._pending_media_fetch;
   if (!srcUrl) {
     // Shouldn't happen — buildPrefillFromContextInfo always sets this for photo prefills
-    await chrome.action.openPopup();
+    await openPopupSafe();
     return;
   }
   // Request host permission for the image's origin if not already granted.
@@ -241,7 +241,7 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
             _media_error: `Permission denied for ${new URL(srcUrl).hostname}. Image not uploaded.`,
           },
         });
-        await chrome.action.openPopup();
+        await openPopupSafe();
         return;
       }
     }
@@ -264,13 +264,28 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
         _source_page: prefill._source_page,
       },
     });
-    await chrome.action.openPopup();
+    await openPopupSafe();
   } catch (e) {
     const message =
       e instanceof ImageFetchError ? e.message : e instanceof Error ? e.message : String(e);
     await sessionStorage().set({
       [PREFILL_KEY]: { ...prefill, _media_error: message },
     });
+    await openPopupSafe();
+  }
+}
+
+/**
+ * Opens the extension popup, falling back to a new tab if the current
+ * browser window doesn't support `chrome.action.openPopup()` (e.g.,
+ * Vivaldi side panels, dev-tools popouts, or browser windows without
+ * a normal toolbar). The popup reads its prefill from chrome.storage.session
+ * the same way regardless of how it's opened.
+ */
+async function openPopupSafe(): Promise<void> {
+  try {
     await chrome.action.openPopup();
+  } catch {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
   }
 }
