@@ -1,0 +1,7 @@
+.wxt
+.output
+node_modules
+playwright-report
+test-results
+bun.lock
+*.d.ts
