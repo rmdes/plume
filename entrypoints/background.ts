@@ -1,6 +1,10 @@
-import { buildPrefillFromContextInfo, MENU_ITEMS } from "../core/context-menus";
+import { CLIENT_ID } from "../core/auth-config";
+import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
+import { fetchImageAsBlob, filenameFromUrl, ImageFetchError } from "../core/image-fetch";
+import { refreshToken } from "../core/indieauth";
+import { MicropubClient } from "../core/micropub-client";
 import { fetchPageTitle } from "../core/page-title";
-import { sessionStorage } from "../storage";
+import { accountStore, sessionStorage } from "../storage";
 
 const PREFILL_KEY = "pendingPrefill";
 
@@ -39,10 +43,54 @@ export default defineBackground(() => {
   });
 });
 
-// Placeholder — full implementation in Phase 6
-async function handleImagePost(prefill: { _pending_media_fetch?: string }): Promise<void> {
-  await sessionStorage().set({
-    [PREFILL_KEY]: { ...prefill, _media_error: "image-post not yet implemented (Phase 6)" },
-  });
-  await chrome.action.openPopup();
+async function handleImagePost(prefill: Prefill): Promise<void> {
+  const account = await accountStore().getActiveRefreshed((tok) => refreshToken(tok, CLIENT_ID));
+  if (!account) {
+    await sessionStorage().set({
+      [PREFILL_KEY]: { ...prefill, _media_error: "No account connected." },
+    });
+    await chrome.action.openPopup();
+    return;
+  }
+  if (!account.media_endpoint) {
+    await sessionStorage().set({
+      [PREFILL_KEY]: {
+        ...prefill,
+        _media_error: `Account ${new URL(account.me).hostname} has no media endpoint configured.`,
+      },
+    });
+    await chrome.action.openPopup();
+    return;
+  }
+  const srcUrl = prefill._pending_media_fetch;
+  if (!srcUrl) {
+    // Shouldn't happen — buildPrefillFromContextInfo always sets this for photo prefills
+    await chrome.action.openPopup();
+    return;
+  }
+  try {
+    const blob = await fetchImageAsBlob(srcUrl);
+    const filename = filenameFromUrl(srcUrl);
+    const client = new MicropubClient({
+      micropubEndpoint: account.micropub_endpoint,
+      mediaEndpoint: account.media_endpoint,
+      token: account.access_token,
+    });
+    const uploadedUrl = await client.uploadMedia(blob, filename);
+    await sessionStorage().set({
+      [PREFILL_KEY]: {
+        type: "photo",
+        photo: [uploadedUrl],
+        _source_page: prefill._source_page,
+      },
+    });
+    await chrome.action.openPopup();
+  } catch (e) {
+    const message =
+      e instanceof ImageFetchError ? e.message : e instanceof Error ? e.message : String(e);
+    await sessionStorage().set({
+      [PREFILL_KEY]: { ...prefill, _media_error: message },
+    });
+    await chrome.action.openPopup();
+  }
 }
