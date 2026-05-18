@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M104 24 Q72 24 48 48 Q24 72 24 104 L48 80 Q72 56 96 56" stroke="#1e3a8a" fill="#dbeafe"/>
+  <line x1="48" y1="80" x2="24" y2="104" stroke="#1e3a8a"/>
+  <line x1="60" y1="52" x2="84" y2="52" stroke="#1e3a8a"/>
+  <line x1="48" y1="64" x2="72" y2="64" stroke="#1e3a8a"/>
+  <line x1="40" y1="76" x2="60" y2="76" stroke="#1e3a8a"/>
+</svg>
