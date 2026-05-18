@@ -19,12 +19,15 @@ jobs:
       - run: bun run zip
       - run: bun run zip:firefox
 
-      - name: Sign Firefox xpi
-        if: ${{ secrets.AMO_API_KEY != '' }}
+      - name: Sign Firefox xpi (skip if no AMO_API_KEY)
         env:
           AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
           AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
         run: |
+          if [ -z "$AMO_API_KEY" ]; then
+            echo "AMO_API_KEY not configured; skipping signing"
+            exit 0
+          fi
           bunx web-ext sign \
             --api-key="$AMO_API_KEY" \
             --api-secret="$AMO_API_SECRET" \
