@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plume — Micropub for browsers</title>
     <!-- IndieAuth client_id discovery: declares allowed redirect URIs -->
+    <!-- Pinned Chrome dev extension ID (derived from manifest.key) -->
+    <link rel="redirect_uri" href="https://kjfcmmliahijkokkhgellflmefpfglin.chromiumapp.org/" />
+    <!-- Wildcard fallback for unpacked dev installs and future Chrome Web Store production ID -->
     <link rel="redirect_uri" href="https://*.chromiumapp.org/" />
+    <!-- Firefox addon callback (UUID is per-install, can't be pinned) -->
     <link rel="redirect_uri" href="https://*.extensions.allizom.org/" />
     <style>
       body {
