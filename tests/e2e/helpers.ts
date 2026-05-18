@@ -1,15 +1,41 @@
 import { chromium, firefox, type BrowserContext } from "@playwright/test";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const EXT_DIR = path.resolve("./.output/chrome-mv3");
+const TEST_ORIGIN = "http://localhost:18750/*";
+
+/**
+ * Copy the built extension to a fresh tmp dir and patch manifest.json to grant
+ * the mock-server origin as a non-optional host permission. This avoids the
+ * user-gesture requirement of `chrome.permissions.request` in tests while
+ * leaving production manifest untouched.
+ */
+function prepareTestExtensionDir(): string {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "plume-ext-"));
+  // Recursive copy
+  fs.cpSync(EXT_DIR, tmp, { recursive: true });
+  const manifestPath = path.join(tmp, "manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+    host_permissions?: string[];
+    optional_host_permissions?: string[];
+  };
+  manifest.host_permissions = Array.from(
+    new Set([...(manifest.host_permissions ?? []), TEST_ORIGIN]),
+  );
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  return tmp;
+}
 
 export async function launchWithExtension(
   browserName: "chromium" | "firefox",
 ): Promise<BrowserContext> {
   if (browserName === "chromium") {
+    const extDir = prepareTestExtensionDir();
     return chromium.launchPersistentContext("", {
       headless: false, // MV3 service workers don't run in headless
-      args: [`--disable-extensions-except=${EXT_DIR}`, `--load-extension=${EXT_DIR}`],
+      args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`],
     });
   }
   // Firefox: web-ext loading is documented in tests/e2e/README.md (T55)
