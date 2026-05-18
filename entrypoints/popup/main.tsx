@@ -58,6 +58,8 @@ function Popup() {
     );
   }
 
+  const mediaError = (prefill as Record<string, unknown>)._media_error as string | undefined;
+
   return (
     <main style={{ minWidth: 360, maxWidth: 360, fontFamily: "system-ui, sans-serif" }}>
       <header
@@ -81,6 +83,20 @@ function Popup() {
           ⚙
         </button>
       </header>
+      {mediaError && (
+        <div
+          role="alert"
+          style={{
+            background: "#fee",
+            color: "#900",
+            padding: "8px 12px",
+            fontSize: 12,
+            borderBottom: "1px solid #fcc",
+          }}
+        >
+          ⚠ {mediaError}
+        </div>
+      )}
       <Composer
         account={account}
         seed={prefill}
