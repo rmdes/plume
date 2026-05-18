@@ -11,5 +11,5 @@
     "jsx": "preserve",
     "jsxImportSource": "preact"
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx", "./.wxt/wxt.d.ts"]
 }

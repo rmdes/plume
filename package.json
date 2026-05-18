@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
     "preact": "^10.22.0"
