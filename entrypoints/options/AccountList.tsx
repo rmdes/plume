@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import type { TokenData } from "../../core/types";
 import { accountStore } from "../../storage";
+import { ExtensionToggles } from "./ExtensionToggles";
 
 interface Props {
   onAddClick: () => void;
@@ -47,28 +48,22 @@ export function AccountList({ onAddClick }: Props) {
             const domain = new URL(a.me).hostname;
             const isActive = domain === activeDomain;
             return (
-              <li
-                key={domain}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "8px 0",
-                  borderBottom: "1px solid #eee",
-                }}
-              >
-                <span style={{ fontWeight: isActive ? 600 : 400 }}>
-                  {isActive ? "●" : "○"} {domain}
-                </span>
-                <span style={{ flex: 1, color: "#666", fontSize: 12 }}>scope: {a.scope}</span>
-                {!isActive && (
-                  <button onClick={() => handleSetDefault(domain)} type="button">
-                    Set default
+              <li key={domain} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontWeight: isActive ? 600 : 400 }}>
+                    {isActive ? "●" : "○"} {domain}
+                  </span>
+                  <span style={{ flex: 1, color: "#666", fontSize: 12 }}>scope: {a.scope}</span>
+                  {!isActive && (
+                    <button onClick={() => handleSetDefault(domain)} type="button">
+                      Set default
+                    </button>
+                  )}
+                  <button onClick={() => handleRemove(domain)} type="button">
+                    Remove
                   </button>
-                )}
-                <button onClick={() => handleRemove(domain)} type="button">
-                  Remove
-                </button>
+                </div>
+                <ExtensionToggles domain={domain} />
               </li>
             );
           })}

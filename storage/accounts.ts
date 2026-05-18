@@ -106,4 +106,19 @@ export class AccountStore {
       return active; // return stale; caller will 401 and we'll surface auth_needed
     }
   }
+
+  async getEnabledExtensions(domain: string): Promise<string[]> {
+    const account = await this.get(domain);
+    return (account as unknown as { enabled_extensions?: string[] })?.enabled_extensions ?? [];
+  }
+
+  async setEnabledExtensions(domain: string, extensionIds: string[]): Promise<void> {
+    const account = await this.get(domain);
+    if (!account) return;
+    const updated = {
+      ...account,
+      enabled_extensions: extensionIds,
+    } as typeof account;
+    await this.update(domain, updated);
+  }
 }
