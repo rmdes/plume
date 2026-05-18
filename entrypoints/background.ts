@@ -9,17 +9,31 @@ import { accountStore, sessionStorage } from "../storage";
 const PREFILL_KEY = "pendingPrefill";
 
 export default defineBackground(() => {
+  async function refreshMenus() {
+    await chrome.contextMenus.removeAll();
+    const active = await accountStore().getActive();
+    const hasMedia = !!active?.media_endpoint;
+    for (const item of MENU_ITEMS) {
+      if (item.id === "plume-post-image" && !hasMedia) continue;
+      chrome.contextMenus.create({
+        id: item.id,
+        title: item.title,
+        contexts: item.contexts,
+        parentId: item.parentId,
+      });
+    }
+  }
+
   chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.removeAll(() => {
-      for (const item of MENU_ITEMS) {
-        chrome.contextMenus.create({
-          id: item.id,
-          title: item.title,
-          contexts: item.contexts,
-          parentId: item.parentId,
-        });
-      }
-    });
+    refreshMenus();
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes.accounts || changes.defaults) {
+      // biome-ignore lint/suspicious/noConsole: legitimate background error logging
+      refreshMenus().catch((e) => console.error("refreshMenus failed", e));
+    }
   });
 
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
