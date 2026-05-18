@@ -48,6 +48,23 @@ export function AiMetadataPanel({ values, defaults = {}, onChange }: Props) {
           </select>
         </label>
         <label>
+          Code level (optional):
+          <select
+            value={current["ai-code-level"]}
+            onChange={(e) =>
+              onChange({
+                ...values,
+                "ai-code-level": (e.currentTarget as HTMLSelectElement).value,
+              })
+            }
+          >
+            <option value="">—</option>
+            <option value="0">0 — Human-written</option>
+            <option value="1">1 — AI-assisted</option>
+            <option value="2">2 — Primarily AI-generated</option>
+          </select>
+        </label>
+        <label>
           Tools:
           <input
             type="text"

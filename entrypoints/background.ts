@@ -70,11 +70,9 @@ export default defineBackground(() => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.accounts || changes.defaults) {
-      // biome-ignore lint/suspicious/noConsole: legitimate background error logging
       refreshMenus().catch((e) => console.error("refreshMenus failed", e));
     }
     if (changes.queue) {
-      // biome-ignore lint/suspicious/noConsole: legitimate background error logging
       updateBadge().catch((e) => console.error("updateBadge failed", e));
     }
   });

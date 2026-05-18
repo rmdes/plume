@@ -148,7 +148,9 @@ export function Composer({
     }
   }
 
-  const needsTitle = state.type === "article";
+  const needsTitle =
+    state.type === "article" ||
+    (state.type === "bookmark" && state.name !== undefined && state.name !== "");
   const needsTarget = TARGET_TYPES.includes(state.type);
   const allowsContent = state.type !== "like";
 
