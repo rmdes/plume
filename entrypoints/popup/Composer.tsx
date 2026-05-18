@@ -1,10 +1,11 @@
 import { useEffect, useState } from "preact/hooks";
+import { AiMetadataPanel } from "../../components/AiMetadataPanel";
 import { CategoryChips } from "../../components/CategoryChips";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
-import { queueStore } from "../../storage";
+import { defaultsStore, queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
 import { useDraftAutosave } from "./useDraftAutosave";
 
@@ -27,6 +28,7 @@ interface Props {
   account: TokenData;
   seed?: Partial<CreateOptions & { type: PostType }>;
   serverConfig?: ServerConfig;
+  enabledExtensions?: string[];
   onPosted: (location: string) => void;
   onError: (message: string) => void;
 }
@@ -57,9 +59,37 @@ function targetFieldFor(type: PostType): keyof CreateOptions {
   return "repostOf";
 }
 
-export function Composer({ account, seed, serverConfig, onPosted, onError }: Props) {
+export function Composer({
+  account,
+  seed,
+  serverConfig,
+  enabledExtensions,
+  onPosted,
+  onError,
+}: Props) {
   const { state, patch, setType } = useComposerState(seed);
   const [busy, setBusy] = useState(false);
+  const [aiDefaults, setAiDefaults] = useState<Record<string, string | undefined>>({});
+  useEffect(() => {
+    defaultsStore()
+      .get()
+      .then((d) =>
+        setAiDefaults({
+          textLevel: d.aiMetadata?.textLevel,
+          codeLevel: d.aiMetadata?.codeLevel,
+          tools: d.aiMetadata?.tools,
+          description: d.aiMetadata?.description,
+        }),
+      );
+  }, []);
+
+  const extProps = state.extensionProperties ?? {};
+  const aiValues: Record<string, string> = {
+    "ai-text-level": extProps["ai-text-level"]?.[0] ?? "",
+    "ai-code-level": extProps["ai-code-level"]?.[0] ?? "",
+    "ai-tools": extProps["ai-tools"]?.[0] ?? "",
+    "ai-description": extProps["ai-description"]?.[0] ?? "",
+  };
 
   // Hydrate target URL field from seed when reply/bookmark/etc.
   const [targetUrl, setTargetUrl] = useState<string>(
@@ -189,6 +219,21 @@ export function Composer({ account, seed, serverConfig, onPosted, onError }: Pro
         values={state.syndicateTo ?? []}
         onChange={(next) => patch({ syndicateTo: next })}
       />
+
+      {(enabledExtensions ?? []).includes("ai-metadata") && (
+        <AiMetadataPanel
+          values={aiValues}
+          defaults={aiDefaults}
+          onChange={(next) => {
+            const ep: Record<string, string[]> = { ...(state.extensionProperties ?? {}) };
+            for (const [k, v] of Object.entries(next)) {
+              if (v) ep[k] = [v];
+              else delete ep[k];
+            }
+            patch({ extensionProperties: ep });
+          }}
+        />
+      )}
 
       <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ color: "#999", fontSize: 11 }}>{account.me}</span>

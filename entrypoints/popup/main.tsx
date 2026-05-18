@@ -17,6 +17,7 @@ function Popup() {
   const [account, setAccount] = useState<TokenData | null | undefined>(undefined);
   const [prefill, setPrefill] = useState<PrefillState | null>(null);
   const [config, setConfig] = useState<ServerConfig | null>(null);
+  const [enabledExtensions, setEnabledExtensions] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ function Popup() {
       fetchAndCacheServerConfig(accountStore(), new URL(a.me).hostname)
         .then(setConfig)
         .catch(() => setConfig({}));
+      accountStore().getEnabledExtensions(new URL(a.me).hostname).then(setEnabledExtensions);
       const pre = (await sessionStorage().get<PrefillState>(PREFILL_KEY)) ?? {};
       await sessionStorage().remove(PREFILL_KEY);
 
@@ -120,6 +122,7 @@ function Popup() {
         account={account}
         seed={prefill}
         serverConfig={config ?? undefined}
+        enabledExtensions={enabledExtensions}
         onPosted={async (loc) => {
           const domain = new URL(account.me).hostname;
           const scope =
