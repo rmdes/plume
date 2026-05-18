@@ -2,8 +2,24 @@ import { useEffect, useState } from "preact/hooks";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
 import type { CreateOptions, PostType, TokenData } from "../../core/types";
+import { queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
 import { useDraftAutosave } from "./useDraftAutosave";
+
+function classifyError(message: string): { retryable: boolean; authNeeded: boolean } {
+  if (/^401\b/.test(message) || /unauthorized/i.test(message)) {
+    return { retryable: false, authNeeded: true };
+  }
+  if (
+    /network/i.test(message) ||
+    /failed to fetch/i.test(message) ||
+    /^5\d\d/.test(message) ||
+    /^429/.test(message)
+  ) {
+    return { retryable: true, authNeeded: false };
+  }
+  return { retryable: false, authNeeded: false };
+}
 
 interface Props {
   account: TokenData;
@@ -70,12 +86,30 @@ export function Composer({ account, seed, onPosted, onError }: Props) {
         token: account.access_token,
       });
       const payload: CreateOptions = { ...state };
-      // type-tab "quote" is just a note with in-reply-to + blockquote content
       if (payload.type === "quote") payload.type = "note";
       const result = await client.create(payload);
       onPosted(result.location);
     } catch (err) {
-      onError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      const { retryable, authNeeded } = classifyError(msg);
+      if (retryable || authNeeded) {
+        const payload: CreateOptions = { ...state };
+        if (payload.type === "quote") payload.type = "note";
+        const id = await queueStore().enqueue({
+          account: new URL(account.me).hostname,
+          payload,
+        });
+        if (authNeeded) {
+          await queueStore().recordAttempt(id, { error: msg, authNeeded: true });
+        }
+        onError(
+          authNeeded
+            ? `Auth expired. Saved to queue — reconnect in settings.`
+            : `Network error — saved to retry queue.`,
+        );
+      } else {
+        onError(`Failed: ${msg}`);
+      }
     } finally {
       setBusy(false);
     }
