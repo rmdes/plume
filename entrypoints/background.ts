@@ -4,7 +4,13 @@ import { fetchImageAsBlob, filenameFromUrl, ImageFetchError } from "../core/imag
 import { refreshToken } from "../core/indieauth";
 import { MicropubClient } from "../core/micropub-client";
 import { fetchPageTitle } from "../core/page-title";
-import { accountStore, sessionStorage } from "../storage";
+import { type NotifyEvent, runRetryTick } from "../core/retry-executor";
+import {
+  accountStore,
+  defaultsStore,
+  queueStore as queueStoreFactory,
+  sessionStorage,
+} from "../storage";
 
 const PREFILL_KEY = "pendingPrefill";
 
@@ -24,8 +30,34 @@ export default defineBackground(() => {
     }
   }
 
+  const QUEUE_ALARM = "plume-queue-tick";
+  const TOKEN_ALARM = "plume-token-refresh";
+
   chrome.runtime.onInstalled.addListener(() => {
     refreshMenus();
+    chrome.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 });
+    chrome.alarms.create(TOKEN_ALARM, { periodInMinutes: 1440 });
+  });
+
+  chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === QUEUE_ALARM) {
+      await runRetryTick({
+        queue: queueStoreFactory(),
+        accounts: accountStore(),
+        post: async (account, payload) => {
+          const client = new MicropubClient({
+            micropubEndpoint: account.micropub_endpoint,
+            mediaEndpoint: account.media_endpoint,
+            token: account.access_token,
+          });
+          return client.create(payload);
+        },
+        refresher: (existing) => refreshToken(existing, CLIENT_ID),
+        notify: handleNotify,
+      });
+    } else if (alarm.name === TOKEN_ALARM) {
+      await proactiveRefreshAll();
+    }
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -56,6 +88,57 @@ export default defineBackground(() => {
     await chrome.action.openPopup();
   });
 });
+
+async function handleNotify(event: NotifyEvent): Promise<void> {
+  const defaults = await defaultsStore().get();
+  const shouldNotifySuccess = defaults.notifyOnBackgroundSuccess ?? true;
+  switch (event.kind) {
+    case "success":
+      if (shouldNotifySuccess) {
+        chrome.notifications.create({
+          type: "basic",
+          iconUrl: chrome.runtime.getURL("/icon/128.png"),
+          title: "Plume",
+          message: `Posted to ${event.domain}`,
+        });
+      }
+      break;
+    case "auth_needed":
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("/icon/128.png"),
+        title: "Plume — reconnect required",
+        message: event.message,
+      });
+      break;
+    case "permanent_failure":
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("/icon/128.png"),
+        title: "Plume — post failed",
+        message: event.message,
+      });
+      break;
+    case "retry_scheduled":
+      // Silent — badge will reflect queue depth (Phase 7 T42).
+      break;
+  }
+}
+
+async function proactiveRefreshAll(): Promise<void> {
+  const list = await accountStore().list();
+  for (const account of list) {
+    if (!account.refresh_token || !account.expires_at) continue;
+    const msLeft = new Date(account.expires_at).getTime() - Date.now();
+    if (msLeft > 24 * 60 * 60 * 1000) continue;
+    try {
+      const refreshed = await refreshToken(account, CLIENT_ID);
+      await accountStore().update(new URL(refreshed.me).hostname, refreshed);
+    } catch {
+      // Will be flagged as auth_needed on next post.
+    }
+  }
+}
 
 async function handleImagePost(prefill: Prefill): Promise<void> {
   const account = await accountStore().getActiveRefreshed((tok) => refreshToken(tok, CLIENT_ID));
