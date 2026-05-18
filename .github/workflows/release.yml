@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run lint
+      - run: bun run zip
+      - run: bun run zip:firefox
+
+      - name: Sign Firefox xpi
+        if: ${{ secrets.AMO_API_KEY != '' }}
+        env:
+          AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+          AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+        run: |
+          bunx web-ext sign \
+            --api-key="$AMO_API_KEY" \
+            --api-secret="$AMO_API_SECRET" \
+            --source-dir=.output/firefox-mv2 \
+            --artifacts-dir=.output/firefox-signed \
+            --channel=unlisted || true
+
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md > release_notes.md
+          cat release_notes.md
+
+      - name: Create draft release with artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Plume ${{ github.ref_name }}
+          body_path: release_notes.md
+          files: |
+            .output/*.zip
+            .output/firefox-signed/*.xpi
