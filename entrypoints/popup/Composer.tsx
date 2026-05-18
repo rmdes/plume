@@ -1,7 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
+import { CategoryChips } from "../../components/CategoryChips";
+import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
-import type { CreateOptions, PostType, TokenData } from "../../core/types";
+import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import { queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
 import { useDraftAutosave } from "./useDraftAutosave";
@@ -24,6 +26,7 @@ function classifyError(message: string): { retryable: boolean; authNeeded: boole
 interface Props {
   account: TokenData;
   seed?: Partial<CreateOptions & { type: PostType }>;
+  serverConfig?: ServerConfig;
   onPosted: (location: string) => void;
   onError: (message: string) => void;
 }
@@ -54,7 +57,7 @@ function targetFieldFor(type: PostType): keyof CreateOptions {
   return "repostOf";
 }
 
-export function Composer({ account, seed, onPosted, onError }: Props) {
+export function Composer({ account, seed, serverConfig, onPosted, onError }: Props) {
   const { state, patch, setType } = useComposerState(seed);
   const [busy, setBusy] = useState(false);
 
@@ -175,6 +178,17 @@ export function Composer({ account, seed, onPosted, onError }: Props) {
           }}
         />
       )}
+
+      <CategoryChips
+        values={state.category ?? []}
+        suggestions={[]}
+        onChange={(next) => patch({ category: next })}
+      />
+      <SyndicateChips
+        targets={serverConfig?.["syndicate-to"] ?? []}
+        values={state.syndicateTo ?? []}
+        onChange={(next) => patch({ syndicateTo: next })}
+      />
 
       <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ color: "#999", fontSize: 11 }}>{account.me}</span>
