@@ -16,18 +16,49 @@ import {
 const PREFILL_KEY = "pendingPrefill";
 
 export default defineBackground(() => {
-  async function refreshMenus() {
-    await chrome.contextMenus.removeAll();
-    const active = await accountStore().getActive();
-    const hasMedia = !!active?.media_endpoint;
-    for (const item of MENU_ITEMS) {
-      if (item.id === "plume-post-image" && !hasMedia) continue;
-      chrome.contextMenus.create({
-        id: item.id,
-        title: item.title,
-        contexts: item.contexts,
-        parentId: item.parentId,
-      });
+  // Serialize refreshMenus to prevent racing removeAll/create cycles
+  // triggered by concurrent onInstalled + storage.onChanged events.
+  // If a refresh is requested while one is running, queue one more
+  // pass after it finishes (handles "state changed during refresh").
+  let menuRefreshRunning = false;
+  let menuRefreshPending = false;
+
+  async function refreshMenus(): Promise<void> {
+    if (menuRefreshRunning) {
+      menuRefreshPending = true;
+      return;
+    }
+    menuRefreshRunning = true;
+    try {
+      do {
+        menuRefreshPending = false;
+        await chrome.contextMenus.removeAll();
+        const active = await accountStore().getActive();
+        const hasMedia = !!active?.media_endpoint;
+        await Promise.all(
+          MENU_ITEMS.filter((item) => !(item.id === "plume-post-image" && !hasMedia)).map(
+            (item) =>
+              new Promise<void>((resolve) => {
+                chrome.contextMenus.create(
+                  {
+                    id: item.id,
+                    title: item.title,
+                    contexts: item.contexts,
+                    parentId: item.parentId,
+                  },
+                  () => {
+                    // Swallow duplicate-id errors silently — they only
+                    // happen if a concurrent path somehow slipped through.
+                    void chrome.runtime.lastError;
+                    resolve();
+                  },
+                );
+              }),
+          ),
+        );
+      } while (menuRefreshPending);
+    } finally {
+      menuRefreshRunning = false;
     }
   }
 
