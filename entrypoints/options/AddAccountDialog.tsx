@@ -59,7 +59,12 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
           background: "white",
           padding: 24,
           borderRadius: 8,
-          minWidth: 400,
+          // Fluid width: hits 440px on roomy viewports, shrinks to 92% of
+          // viewport on narrow ones (popup view, sidebars, small windows).
+          // Without this, the rigid minWidth:400 clipped the Authorize
+          // button when the modal opened inside a popup-sized surface.
+          width: "min(440px, 92vw)",
+          boxSizing: "border-box",
           display: "grid",
           gap: 12,
         }}
@@ -77,7 +82,16 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
           />
         </label>
         {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            // Wrap to a second row if the dialog gets squeezed below the
+            // combined natural width of both buttons + gap.
+            flexWrap: "wrap",
+          }}
+        >
           <button type="button" onClick={onClose} disabled={busy}>
             Cancel
           </button>
