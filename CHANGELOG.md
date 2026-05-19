@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned for v1.1
 
 - **MediaPicker**: browse and reuse existing files uploaded to the media endpoint, via `?q=source` paginated query. Saves re-uploading photos that already live on the server.
-- **`mp-extensions` server-advertised auto-detection**: paired patch to `@rmdes/indiekit-endpoint-posts` so accounts auto-enable known extensions when the server declares them.
+- **Spec-compliant extension auto-detection**: scan the `?q=post-types` response's `properties[]` arrays for known extension property names (e.g., `ai-text-level`); auto-enable matching toggles. Paired patch to `@rmdes/indiekit-endpoint-posts` to advertise the AI metadata fields in its `post-types` properties. Uses only spec-defined Micropub surface — no new discovery field invented.
 - **Live refresh of QueueList / DraftList** when `chrome.storage.onChanged` fires (currently re-fetch only on mount + user actions).
 - **Keyboard shortcut** to open the composer.
 - **Playwright fixture cleanup** for `/tmp/plume-ext-*` directories left by extension-loader patches.

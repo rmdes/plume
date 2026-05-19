@@ -33,7 +33,23 @@ export function ExtensionToggles({ domain }: Props) {
             <span>
               <strong>{ext.label}</strong>
               <br />
-              <span style={{ color: "#999" }}>{ext.description}</span>
+              <span style={{ color: "#999" }}>
+                {ext.description}
+                {ext.reference && (
+                  <>
+                    {" "}
+                    <a
+                      href={ext.reference.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={ext.reference.title}
+                      style={{ color: "#3b82f6" }}
+                    >
+                      About this convention →
+                    </a>
+                  </>
+                )}
+              </span>
             </span>
           </label>
         ))}

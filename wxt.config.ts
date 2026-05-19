@@ -9,7 +9,7 @@ export default defineConfig({
     key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs6SubPQiXCels8Y3r/kP+7osJRkASWl+9XC69fYJwhj8GWL+mZEHNI3DJrYPJ8+zWAJw291FrIGL/SoPU013b85fn918IVBCZssXICOU+BJ1WOZw2UItWPZd4WkL4SOq66AQ5bC2lYycbMmoU0bUTL7Y6RiYoSZOqmxamQTyQ+2zbGq7DX/wZcH/AN3Ea1oKAoqTIOodzM5DDf2Ep6ORsC43SRazks5AonG3Px+dzsj4YNRQx8Hc4n45gmKNYbigOYO2GNrCxhuY1bYt7z5Nh64XdtW9NFSA8HGFK+f4v+ahwyvPyP5vccJt/F8o1s+Pk8PMhqIdM2Tnsl+bsdaubwIDAQAB",
     name: "Plume — Micropub Client",
     description: "Post to your Micropub-compatible blog from anywhere in the browser.",
-    permissions: ["storage", "contextMenus", "identity", "activeTab", "notifications", "alarms"],
+    permissions: ["storage", "contextMenus", "identity", "notifications", "alarms"],
     optional_host_permissions: ["<all_urls>"],
     action: {
       default_title: "Plume",

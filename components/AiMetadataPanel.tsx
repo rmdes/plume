@@ -89,6 +89,16 @@ export function AiMetadataPanel({ values, defaults = {}, onChange }: Props) {
             style={{ width: "100%" }}
           />
         </label>
+        <p style={{ margin: 0, fontSize: 11, color: "#888" }}>
+          <a
+            href="https://rmendes.net/articles/2026/03/03/adding-ai-usage-metadata-to/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#3b82f6" }}
+          >
+            About AI transparency metadata →
+          </a>
+        </p>
       </div>
     </details>
   );

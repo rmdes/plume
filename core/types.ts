@@ -74,7 +74,10 @@ export interface CreateResult {
 export interface ServerConfig {
   "media-endpoint"?: string;
   "syndicate-to"?: Array<{ uid: string; name: string }>;
+  // post-types' `properties[]` is the spec-defined surface for advertising
+  // which mf2 fields a post type accepts. v1.1 will scan this for known
+  // extension property names (e.g., ai-text-level) to auto-enable matching
+  // toggles, instead of inventing a parallel discovery field.
   "post-types"?: Array<{ type: string; name: string; properties?: string[] }>;
   channels?: Array<{ uid: string; name: string }>;
-  "mp-extensions"?: Record<string, { properties: string[]; version: string }>;
 }

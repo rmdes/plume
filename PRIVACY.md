@@ -31,7 +31,6 @@ browser unless you explicitly post:
 - `storage` — local-only data (above).
 - `contextMenus` — right-click capture entry points.
 - `identity` — runs the IndieAuth OAuth flow via `chrome.identity.launchWebAuthFlow`.
-- `activeTab` — read the current page URL/title when triggered from the popup.
 - `notifications` — surface background retry outcomes.
 - `alarms` — periodic retry queue tick and token refresh.
 - `optional_host_permissions: ["<all_urls>"]` — requested **per-account** at
