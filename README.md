@@ -3,8 +3,10 @@
 Cross-browser Micropub client extension. Post to your IndieWeb-compatible blog
 from any page — toolbar composer or right-click context menus.
 
-**Status:** v1.2.0 — released 2026-05-19.
-[Download v1.2.0](https://github.com/rmdes/plume/releases/latest) ·
+[![Latest release](https://img.shields.io/github/v/release/rmdes/plume?label=latest&sort=semver)](https://github.com/rmdes/plume/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+[Latest release](https://github.com/rmdes/plume/releases/latest) ·
 [Landing page](https://rmdes.github.io/plume/) ·
 [Privacy](./PRIVACY.md)
 
@@ -66,11 +68,11 @@ and metadata you chose.
 
 - **Chrome Web Store:** [Install on Chrome](https://chromewebstore.google.com/detail/hcphdjeoolimpjjekegpobkhoealiige/)
 - **Mozilla AMO:** [Install on Firefox](https://addons.mozilla.org/en-US/firefox/addon/plume-micropub-client/)
-- **Direct download:** [v1.1.0 release](https://github.com/rmdes/plume/releases/latest) (Chrome zip + Firefox zip + source)
+- **Direct download:** [latest release](https://github.com/rmdes/plume/releases/latest) (Chrome zip + Firefox zip + source)
 
 To load the Chrome build as an unpacked extension:
 
-1. Download `plume-1.2.0-chrome.zip` from the release page and extract it.
+1. From the [latest release](https://github.com/rmdes/plume/releases/latest), download the Chrome zip asset (named `plume-<version>-chrome.zip`) and extract it.
 2. Open `chrome://extensions`, enable "Developer mode" (top right).
 3. Click "Load unpacked" and select the extracted directory.
 
