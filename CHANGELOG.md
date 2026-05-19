@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-05-19
+
+### Fixed
+
+- Chrome Web Store first-upload rejection: `manifest.key` was being included in production zips, which CWS rejects with "the value of the 'key' field does not match the current item." The `key` field is now conditionally injected only in development mode (preserving the stable dev ID), and omitted from `wxt zip` outputs uploaded to stores. The wildcard `https://*.chromiumapp.org/` redirect URI on the Pages site covers whatever ID CWS eventually assigns.
+
 ## [1.0.1] — 2026-05-19
 
 ### Fixed
