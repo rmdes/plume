@@ -113,11 +113,11 @@
         background: var(--ink);
         color: white;
       }
-      .badge.pending {
-        opacity: 0.55;
-        cursor: default;
+      .badge.store {
+        background: var(--ink);
+        color: white;
       }
-      .badge.pending:hover {
+      .badge.store:hover {
         background: white;
         color: var(--ink);
       }
@@ -252,12 +252,20 @@
             Cross-browser, multi-account, no telemetry.
           </p>
           <div class="badges">
+            <a
+              class="badge store"
+              href="https://chromewebstore.google.com/detail/hcphdjeoolimpjjekegpobkhoealiige/"
+              >Install on Chrome</a
+            >
+            <a
+              class="badge store"
+              href="https://addons.mozilla.org/en-US/firefox/addon/plume-micropub-client/"
+              >Install on Firefox</a
+            >
             <a class="badge" href="https://github.com/rmdes/plume">Source on GitHub</a>
             <a class="badge" href="https://github.com/rmdes/plume/releases/latest"
               >Download latest</a
             >
-            <span class="badge pending" title="Pending store review">Chrome Web Store · soon</span>
-            <span class="badge pending" title="Pending store review">Mozilla AMO · soon</span>
           </div>
         </div>
       </div>
@@ -397,6 +405,27 @@
               </p>
             </div>
             <div class="feature">
+              <h3>📝 Markdown authoring</h3>
+              <p>
+                Toolbar with bold, italic, link, list, quote, code, heading. Optional live preview
+                pane with sanitized rendering (snarkdown + DOMPurify, lazy-loaded).
+              </p>
+            </div>
+            <div class="feature">
+              <h3>↗ Pop-out composer</h3>
+              <p>
+                Toolbar popup is sized for quick notes. Click the pop-out arrow to open the same
+                composer in a tab at desk-width for long-form articles.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>⌨ Keyboard shortcut</h3>
+              <p>
+                <code>Alt+Shift+P</code> opens the composer from any page. Rebindable via the
+                browser's extension-shortcuts settings.
+              </p>
+            </div>
+            <div class="feature">
               <h3>🌐 Cross-browser</h3>
               <p>
                 One codebase, Chrome + Firefox manifests. Built on
@@ -468,15 +497,15 @@
             and a reference client implementation in Plume.
           </p>
           <p>
-            For v1.0.x, accounts opt in manually via the Plume options page. For v1.1, Plume will
-            auto-detect support by scanning the Micropub server's <code>?q=post-types</code>
-            response and matching known extension property names against each post type's
-            <code>properties[]</code> array. This uses only spec-defined Micropub surface (<code
-              >properties[]</code
-            >
-            on <code>?q=post-types</code> entries is documented to list the mf2 fields a post type
-            accepts), so any Micropub server that advertises the AI metadata fields the standard way
-            will work with Plume automatically &mdash; no vendor-specific discovery field required.
+            Plume auto-detects support by scanning the Micropub server's
+            <code>?q=post-types</code> response and matching known extension property names against
+            each post type's <code>properties[]</code> array. This uses only spec-defined Micropub
+            surface (<code>properties[]</code> on <code>?q=post-types</code> entries is documented
+            to list the mf2 fields a post type accepts), so any Micropub server that advertises the
+            AI metadata fields the standard way will work with Plume automatically &mdash; no
+            vendor-specific discovery field required. When the server advertises the required
+            properties, the options page shows a "✓ Server supports" badge next to the extension
+            toggle; users still opt in explicitly per account.
           </p>
         </div>
       </section>
@@ -485,7 +514,14 @@
     <footer>
       <div class="container">
         <div>
-          <strong style="color: var(--ink-deep)">Plume v1.0.4</strong> — MIT licensed, no telemetry.
+          <strong style="color: var(--ink-deep)">Plume</strong>
+          <a href="https://github.com/rmdes/plume/releases/latest"
+            ><img
+              src="https://img.shields.io/github/v/release/rmdes/plume?label=&sort=semver&style=flat-square&color=1e3a8a"
+              alt="Latest release"
+              style="vertical-align: middle"
+          /></a>
+          — MIT licensed, no telemetry.
         </div>
         <div>
           <a href="https://github.com/rmdes/plume">Source</a> &nbsp;·&nbsp;
