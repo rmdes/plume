@@ -5,8 +5,9 @@ import { MediaPicker } from "../../components/MediaPicker";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
+import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
-import { defaultsStore, queueStore } from "../../storage";
+import { accountStore, defaultsStore, queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
 import { useDraftAutosave } from "./useDraftAutosave";
 
@@ -208,8 +209,6 @@ export function Composer({
                   // the account record for next time.
                   let mediaEndpoint = account.media_endpoint;
                   if (!mediaEndpoint) {
-                    const { fetchAndCacheServerConfig } = await import("../../core/server-config");
-                    const { accountStore } = await import("../../storage");
                     const domain = new URL(account.me).hostname;
                     const config = await fetchAndCacheServerConfig(accountStore(), domain);
                     mediaEndpoint = config["media-endpoint"];

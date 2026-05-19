@@ -1,6 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
 import { MicropubClient } from "../core/micropub-client";
+import { fetchAndCacheServerConfig } from "../core/server-config";
 import type { MediaItem, TokenData } from "../core/types";
+import { accountStore } from "../storage";
 
 interface Props {
   account: TokenData;
@@ -35,8 +37,6 @@ export function MediaPicker({ account, onSelect, onClose }: Props) {
       // endpoint back to the account for next time, so this is a one-time hit.
       let mediaEndpoint = account.media_endpoint;
       if (!mediaEndpoint) {
-        const { fetchAndCacheServerConfig } = await import("../core/server-config");
-        const { accountStore } = await import("../storage");
         const domain = new URL(account.me).hostname;
         const config = await fetchAndCacheServerConfig(accountStore(), domain);
         mediaEndpoint = config["media-endpoint"];
