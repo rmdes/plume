@@ -4,47 +4,460 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plume — Micropub for browsers</title>
-    <!-- IndieAuth client_id discovery: declares allowed redirect URIs -->
+    <meta
+      name="description"
+      content="Cross-browser Micropub client. Post to your IndieWeb blog from any page — toolbar composer, right-click capture, drafts, retry queue."
+    />
+    <!--
+      IndieAuth client_id discovery: declares allowed OAuth redirect URIs.
+      MUST be kept verbatim — the Plume extension and IndieAuth servers depend
+      on these <link rel="redirect_uri"> tags for the auth flow.
+    -->
     <!-- Pinned Chrome dev extension ID (derived from manifest.key) -->
     <link rel="redirect_uri" href="https://kjfcmmliahijkokkhgellflmefpfglin.chromiumapp.org/" />
     <!-- Wildcard fallback for unpacked dev installs and future Chrome Web Store production ID -->
     <link rel="redirect_uri" href="https://*.chromiumapp.org/" />
     <!-- Firefox addon callback (UUID is per-install, can't be pinned) -->
     <link rel="redirect_uri" href="https://*.extensions.allizom.org/" />
+
+    <meta property="og:title" content="Plume — Micropub for browsers" />
+    <meta
+      property="og:description"
+      content="Cross-browser Micropub client. Post to your IndieWeb blog from any page."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rmdes.github.io/plume/" />
+    <meta
+      property="og:image"
+      content="https://rmdes.github.io/plume/screenshots/1-compose-note.png"
+    />
+
     <style>
+      :root {
+        --ink: #1e3a8a;
+        --ink-deep: #1e293b;
+        --paper: #f8fafc;
+        --paper-warm: #fefce8;
+        --paper-edge: #e2e8f0;
+        --muted: #64748b;
+        --accent-bg: #dbeafe;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
       body {
-        font-family: system-ui, sans-serif;
-        max-width: 640px;
-        margin: 4rem auto;
-        padding: 0 1rem;
-        color: #222;
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: var(--ink-deep);
+        background: var(--paper);
         line-height: 1.6;
       }
-      h1 {
-        font-size: 2.5rem;
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
       }
-      a {
-        color: #1e3a8a;
+      /* Hero */
+      header.hero {
+        padding: 5rem 0 4rem;
+        background: linear-gradient(135deg, var(--paper) 0%, var(--accent-bg) 100%);
+        border-bottom: 1px solid var(--paper-edge);
       }
-      code {
-        background: #f3f4f6;
-        padding: 0.1em 0.3em;
+      .hero-inner {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2rem;
+        align-items: center;
+      }
+      .hero-logo {
+        font-size: 4rem;
+        line-height: 1;
+      }
+      .hero h1 {
+        margin: 0 0 0.5rem;
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .hero .lede {
+        margin: 0 0 1.5rem;
+        font-size: clamp(1.05rem, 2vw, 1.25rem);
+        color: var(--ink-deep);
+        max-width: 60ch;
+      }
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: white;
+        color: var(--ink);
+        border: 1px solid var(--ink);
+        border-radius: 999px;
+        font-size: 0.85rem;
+        text-decoration: none;
+        transition: all 0.15s;
+      }
+      .badge:hover {
+        background: var(--ink);
+        color: white;
+      }
+      .badge.pending {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .badge.pending:hover {
+        background: white;
+        color: var(--ink);
+      }
+      /* Sections */
+      section {
+        padding: 4rem 0;
+      }
+      section + section {
+        border-top: 1px solid var(--paper-edge);
+      }
+      h2 {
+        font-size: clamp(1.5rem, 3vw, 2rem);
+        margin: 0 0 0.75rem;
+        color: var(--ink-deep);
+        letter-spacing: -0.01em;
+      }
+      h2 + p.sub {
+        margin: 0 0 2.5rem;
+        color: var(--muted);
+        max-width: 60ch;
+      }
+      /* Screenshot rows */
+      .screenshot-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3rem;
+        align-items: center;
+        margin: 3rem 0;
+      }
+      .screenshot-row.reverse {
+        direction: rtl;
+      }
+      .screenshot-row.reverse > * {
+        direction: ltr;
+      }
+      .screenshot-row img {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        box-shadow:
+          0 20px 40px -10px rgba(30, 58, 138, 0.12),
+          0 6px 12px -4px rgba(30, 58, 138, 0.08);
+      }
+      .screenshot-row h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.35rem;
+        color: var(--ink);
+      }
+      .screenshot-row p {
+        margin: 0;
+        color: var(--ink-deep);
+      }
+      @media (max-width: 720px) {
+        .screenshot-row,
+        .screenshot-row.reverse {
+          grid-template-columns: 1fr;
+          direction: ltr;
+        }
+        .hero-inner {
+          grid-template-columns: 1fr;
+          text-align: center;
+        }
+      }
+      /* Features grid */
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+      }
+      .feature {
+        padding: 1.25rem;
+        background: white;
+        border: 1px solid var(--paper-edge);
+        border-radius: 6px;
+      }
+      .feature h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1rem;
+        color: var(--ink);
+      }
+      .feature p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      /* Technical/footer */
+      .technical {
+        background: var(--paper-warm);
+      }
+      .technical code {
+        background: #fef3c7;
+        padding: 0.1em 0.35em;
         border-radius: 3px;
+        font-size: 0.9em;
+      }
+      .technical p {
+        max-width: 70ch;
+      }
+      footer {
+        padding: 2.5rem 0;
+        border-top: 1px solid var(--paper-edge);
+        background: white;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      footer .container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        justify-content: space-between;
+        align-items: center;
+      }
+      footer a {
+        color: var(--ink);
+        text-decoration: none;
+        border-bottom: 1px solid var(--accent-bg);
+      }
+      footer a:hover {
+        border-bottom-color: var(--ink);
       }
     </style>
   </head>
   <body>
-    <h1>🪶 Plume</h1>
-    <p>Cross-browser Micropub client extension for IndieWeb publishing.</p>
-    <p>
-      This page exists so IndieAuth servers can discover the allowed OAuth redirect URIs for the
-      Plume extension. The extension uses <code>https://rmdes.github.io/plume/</code> as its
-      <code>client_id</code>.
-    </p>
-    <ul>
-      <li><a href="https://github.com/rmdes/plume">Source code (GitHub)</a></li>
-      <li><a href="/plume/privacy.html">Privacy policy</a></li>
-      <li>Install: Chrome Web Store / Mozilla AMO (links pending review)</li>
-    </ul>
+    <header class="hero">
+      <div class="container hero-inner">
+        <div class="hero-logo" aria-hidden="true">🪶</div>
+        <div>
+          <h1>Plume</h1>
+          <p class="lede">
+            Post to your IndieWeb blog from any page — toolbar composer or right-click capture.
+            Cross-browser, multi-account, no telemetry.
+          </p>
+          <div class="badges">
+            <a class="badge" href="https://github.com/rmdes/plume">Source on GitHub</a>
+            <a class="badge" href="https://github.com/rmdes/plume/releases/latest">Download v1.0</a>
+            <span class="badge pending" title="Pending store review">Chrome Web Store · soon</span>
+            <span class="badge pending" title="Pending store review">Mozilla AMO · soon</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <div class="container">
+          <h2>Capture from anywhere you read</h2>
+          <p class="sub">
+            Plume lives in the toolbar and in the right-click menu. Every kind of post the IndieWeb
+            knows about — notes, articles, bookmarks, replies, likes, reposts, quotes, photos — is
+            one click away.
+          </p>
+
+          <div class="screenshot-row">
+            <img
+              src="screenshots/1-compose-note.png"
+              alt="Plume's toolbar popup with a composed note, tags, and syndication chips"
+              loading="lazy"
+            />
+            <div>
+              <h3>Quick composer</h3>
+              <p>
+                Click the toolbar feather. Type. Pick tags. Choose where to syndicate. Post. The
+                whole loop takes ~5 seconds and never leaves the page you were reading.
+              </p>
+            </div>
+          </div>
+
+          <div class="screenshot-row reverse">
+            <img
+              src="screenshots/2-bookmark-prefilled.png"
+              alt="Plume's bookmark composer pre-filled with a URL and title from a context-menu click"
+              loading="lazy"
+            />
+            <div>
+              <h3>Right-click to bookmark, reply, quote, like</h3>
+              <p>
+                Right-click any page, link, image, or text selection. Plume opens with the right
+                fields pre-filled — URL of what you're bookmarking, page title, the passage you
+                highlighted as a Markdown blockquote with citation.
+              </p>
+            </div>
+          </div>
+
+          <div class="screenshot-row">
+            <img
+              src="screenshots/3-options-accounts.png"
+              alt="Plume's options page showing multiple accounts, a retry queue, and draft posts"
+              loading="lazy"
+            />
+            <div>
+              <h3>Drafts, retry queue, multi-account</h3>
+              <p>
+                Auto-save while you write — drafts survive across popup closes. Posts that hit a
+                network blip get queued and retried in the background with exponential backoff.
+                Connect multiple Micropub blogs and switch between them.
+              </p>
+            </div>
+          </div>
+
+          <div class="screenshot-row reverse">
+            <img
+              src="screenshots/4-posted-toast.png"
+              alt="Plume's composer showing the successful post confirmation toast"
+              loading="lazy"
+            />
+            <div>
+              <h3>Posted, with a link back</h3>
+              <p>
+                When the server confirms, Plume shows you the URL of your new post and closes. Your
+                content lands on your blog with whatever syndication targets and metadata you chose
+                — exactly as if you'd posted from the admin UI.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <h2>What's inside</h2>
+          <p class="sub">
+            Everything Plume does runs in your browser. No analytics, no telemetry, no third-party
+            hosts. The only network requests Plume makes are to the Micropub endpoints you connect.
+          </p>
+
+          <div class="feature-grid">
+            <div class="feature">
+              <h3>🔐 IndieAuth + PKCE</h3>
+              <p>
+                Standards-compliant OAuth via <code>chrome.identity.launchWebAuthFlow</code>. Tokens
+                stay on your device.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>🪶 Multi-account</h3>
+              <p>
+                Connect more than one Micropub blog. Switch the active account; each keeps its own
+                drafts and queue.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>💾 Draft autosave</h3>
+              <p>
+                Per-target drafts auto-save 1 second after each keystroke. Restored on next popup
+                open. 7-day expiry.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>🔁 Retry queue</h3>
+              <p>
+                Network outage? Server hiccup? Plume queues failed posts and retries with backoff
+                (30s → 24h). Badge shows queue depth.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>🎯 Narrow permissions</h3>
+              <p>
+                Install asks for nothing broad. Host permissions are requested per-account, only
+                when you actually connect a blog.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>🧩 Server-aware</h3>
+              <p>
+                Plume reads <code>?q=config</code>, <code>?q=post-types</code>, and
+                <code>?q=category</code> from your blog. Caches 24h.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>🤖 AI metadata</h3>
+              <p>
+                Optional per-post fields disclosing AI involvement (level, tools, description).
+                Works with any extension-aware Micropub server.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>🌐 Cross-browser</h3>
+              <p>
+                One codebase, Chrome + Firefox manifests. Built on
+                <a href="https://wxt.dev" style="color: var(--ink)">WXT</a> + Preact + TypeScript.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="technical">
+        <div class="container">
+          <h2>For IndieAuth servers</h2>
+          <p>
+            This page is Plume's IndieAuth <code>client_id</code> URL. When the extension initiates
+            authentication, your IndieAuth server fetches this URL and reads the
+            <code>&lt;link rel="redirect_uri"&gt;</code> entries in the <code>&lt;head&gt;</code> to
+            verify the OAuth callback. Three patterns are declared:
+          </p>
+          <ul>
+            <li>
+              <code>https://kjfcmmliahijkokkhgellflmefpfglin.chromiumapp.org/</code> — pinned Chrome
+              extension ID (matches the <code>manifest.key</code> field, stable across dev installs)
+            </li>
+            <li>
+              <code>https://*.chromiumapp.org/</code> — wildcard fallback for unpacked dev installs
+              and the future Chrome Web Store production ID
+            </li>
+            <li>
+              <code>https://*.extensions.allizom.org/</code> — Firefox addon callback (UUID is
+              per-install, can't be pinned)
+            </li>
+          </ul>
+          <p>
+            Indiekit servers running
+            <a
+              href="https://www.npmjs.com/package/@rmdes/indiekit-endpoint-auth"
+              style="color: var(--ink)"
+              ><code>@rmdes/indiekit-endpoint-auth</code></a
+            >
+            1.0.0-beta.31 or later support fetching this URL and matching wildcards. Other IndieAuth
+            servers may need to implement
+            <a href="https://indieauth.spec.indieweb.org/#redirect-url" style="color: var(--ink)"
+              >redirect URL discovery</a
+            >
+            similarly.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container">
+        <div>
+          <strong style="color: var(--ink-deep)">Plume v1.0</strong> — MIT licensed, no telemetry.
+        </div>
+        <div>
+          <a href="https://github.com/rmdes/plume">Source</a> &nbsp;·&nbsp;
+          <a href="privacy.html">Privacy</a> &nbsp;·&nbsp;
+          <a href="https://github.com/rmdes/plume/issues">Issues</a> &nbsp;·&nbsp;
+          <a href="https://github.com/rmdes/plume/blob/main/CHANGELOG.md">Changelog</a>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

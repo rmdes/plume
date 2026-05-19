@@ -28,7 +28,7 @@ const MOCK_BASE = "http://localhost:18750";
 const OUT_DIR =
   process.env.SCREENSHOTS_OUT ??
   process.argv.find((a) => a.startsWith("--out="))?.slice("--out=".length) ??
-  path.resolve("./docs/store-listings/screenshots");
+  path.resolve("./docs/site/screenshots");
 
 const VIEWPORT = { width: 1280, height: 800 };
 
