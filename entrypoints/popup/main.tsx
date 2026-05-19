@@ -13,12 +13,25 @@ interface PrefillState extends Partial<CreateOptions> {
   type?: PostType;
 }
 
+// Pop-out mode renders the popup as a centered tab page at desk-width
+// instead of the cramped 360px toolbar popup. Triggered by appending
+// ?popout=1 to popup.html — both the explicit pop-out button below and
+// the openPopupSafe fallback in background.ts use this flag.
+const isPopout =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("popout") === "1";
+
 function Popup() {
   const [account, setAccount] = useState<TokenData | null | undefined>(undefined);
   const [prefill, setPrefill] = useState<PrefillState | null>(null);
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [enabledExtensions, setEnabledExtensions] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+
+  function openInTab() {
+    void chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?popout=1") });
+    window.close();
+  }
 
   useEffect(() => {
     (async () => {
@@ -69,7 +82,23 @@ function Popup() {
   const mediaError = (prefill as Record<string, unknown>)._media_error as string | undefined;
 
   return (
-    <main style={{ minWidth: 360, maxWidth: 360, fontFamily: "system-ui, sans-serif" }}>
+    <main
+      style={
+        isPopout
+          ? {
+              // Desk-width layout: comfortable for articles, still readable
+              // line lengths (typography research caps body width ~75ch ≈ 720px).
+              minWidth: 480,
+              maxWidth: 720,
+              margin: "32px auto",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+              borderRadius: 8,
+              fontFamily: "system-ui, sans-serif",
+              background: "white",
+            }
+          : { minWidth: 360, maxWidth: 360, fontFamily: "system-ui, sans-serif" }
+      }
+    >
       <header
         style={{
           display: "flex",
@@ -82,14 +111,33 @@ function Popup() {
         }}
       >
         <span>🪶 Plume · {new URL(account.me).hostname}</span>
-        <button
-          onClick={openOptions}
-          type="button"
-          aria-label="Open settings"
-          style={{ background: "none", border: "none", cursor: "pointer", color: "#666" }}
-        >
-          ⚙
-        </button>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {!isPopout && (
+            <button
+              onClick={openInTab}
+              type="button"
+              aria-label="Open in a wider window"
+              title="Open in a wider window (for articles)"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#666",
+                fontSize: 14,
+              }}
+            >
+              ↗
+            </button>
+          )}
+          <button
+            onClick={openOptions}
+            type="button"
+            aria-label="Open settings"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#666" }}
+          >
+            ⚙
+          </button>
+        </div>
       </header>
       {mediaError && (
         <div
@@ -123,6 +171,7 @@ function Popup() {
         seed={prefill}
         serverConfig={config ?? undefined}
         enabledExtensions={enabledExtensions}
+        isPopout={isPopout}
         onPosted={async (loc) => {
           const domain = new URL(account.me).hostname;
           const scope =

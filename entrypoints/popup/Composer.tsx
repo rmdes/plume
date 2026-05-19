@@ -31,6 +31,10 @@ interface Props {
   seed?: Partial<CreateOptions & { type: PostType }>;
   serverConfig?: ServerConfig;
   enabledExtensions?: string[];
+  // When rendered in a tab (via the pop-out button or openPopupSafe's
+  // fallback), give the textarea more vertical room so article writing
+  // doesn't feel cramped.
+  isPopout?: boolean;
   onPosted: (location: string) => void;
   onError: (message: string) => void;
 }
@@ -66,6 +70,7 @@ export function Composer({
   seed,
   serverConfig,
   enabledExtensions,
+  isPopout = false,
   onPosted,
   onError,
 }: Props) {
@@ -292,13 +297,17 @@ export function Composer({
           placeholder="What's on your mind?"
           value={state.content ?? ""}
           onInput={(e) => patch({ content: (e.currentTarget as HTMLTextAreaElement).value })}
-          rows={6}
+          // Article writing needs vertical room. In popout mode use a much
+          // larger default so long-form drafts don't feel cramped on first
+          // sight; the textarea is still vertically resizable either way.
+          rows={isPopout ? 20 : state.type === "article" ? 12 : 6}
           style={{
             width: "100%",
             padding: 8,
-            fontSize: 14,
+            fontSize: isPopout ? 15 : 14,
             fontFamily: "Lora, Georgia, serif",
             resize: "vertical",
+            boxSizing: "border-box",
           }}
         />
       )}
