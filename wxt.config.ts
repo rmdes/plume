@@ -31,6 +31,23 @@ export default defineConfig({
         "32": "icon/32.png",
       },
     },
+    // `_execute_action` is the MV3 reserved command name that opens the
+    // toolbar popup. Users can rebind via chrome://extensions/shortcuts
+    // (or about:addons → ⚙️ → Manage Extension Shortcuts on Firefox).
+    // Default keeps fingers on home row: Ctrl+Shift+P (Cmd+Shift+P on macOS).
+    commands: {
+      // `_execute_action` is the MV3 reserved name that opens the toolbar
+      // popup. Alt+Shift+P avoids both Firefox's "Open Private Window"
+      // (Ctrl+Shift+P) and Chrome's DevTools command palette. Users can
+      // rebind via chrome://extensions/shortcuts or about:addons → ⚙️.
+      _execute_action: {
+        suggested_key: {
+          default: "Alt+Shift+P",
+          mac: "Alt+Shift+P",
+        },
+        description: "Open the Plume composer",
+      },
+    },
     icons: {
       "16": "icon/16.png",
       "32": "icon/32.png",

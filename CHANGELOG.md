@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-05-19
+
+### Added
+
+- **MediaPicker** modal in the Photo composer: "Or browse media already on your server →" opens a 3-column thumbnail grid of existing files fetched via `?q=source` on the media endpoint, with cursor-based pagination (`paging.after` / `paging.before`). Selecting a thumbnail fills `photo[]` for the post.
+- **Pop-out composer** for long-form writing: new "↗" button in the popup header opens `popup.html?popout=1` in a tab where the same composer renders at desk-width (min 480px, max 720px — capped at ~75ch for readable line length). Textarea jumps from `rows=6` to `rows=20` with a slightly larger font. Article-type posts also get a roomier `rows=12` textarea even in the toolbar popup. `openPopupSafe`'s tab fallback now also passes `?popout=1`, so Vivaldi side-panel users get the wider layout for free.
+- **Server-side extension detection** via `?q=post-types`. Plume scans the union of all `post-types[].properties[]` for known extension property keys (e.g., `ai-text-level`). When an extension's required properties are all advertised by the server, ExtensionToggles renders a "✓ Server supports" badge next to it. Spec-compliant replacement for the earlier out-of-spec `mp-extensions` idea.
+- **Keyboard shortcut** to open the composer popup: `Alt+Shift+P` by default. Users can rebind via `chrome://extensions/shortcuts` (Chrome) or `about:addons` → Manage Extension Shortcuts (Firefox).
+- **Live refresh** of QueueList and DraftList on the options page. Both lists now subscribe to `chrome.storage.onChanged` so background mutations (queue executor running, popup composer auto-saving) update the UI without a manual reload.
+
+### Fixed
+
+- MediaPicker self-heals when `account.media_endpoint` is missing. Same `?q=config` lookup that the file uploader already uses; previously the picker threw "no media endpoint configured" even when the server advertised one.
+- AddAccountDialog now uses fluid width (`min(440px, 92vw)`) instead of a rigid `minWidth: 400`. On narrow viewports (popup-sized surfaces, sidebars, small windows) the modal was sticking out past the centered backdrop, clipping the right-justified "Authorize" button. Button row also gets `flexWrap` for the extreme-narrow case.
+
+### Chores
+
+- E2E test fixtures: `/tmp/plume-ext-*` dirs are now cleaned up on process exit instead of accumulating across test runs.
+- GitHub Actions bumped to Node 24-capable versions ahead of GitHub's Sep 2026 retirement of Node 20 actions: `actions/checkout@v5`, `actions/upload-artifact@v5`, `actions/upload-pages-artifact@v4`.
+
 ## [1.0.4] — 2026-05-19
 
 ### Fixed

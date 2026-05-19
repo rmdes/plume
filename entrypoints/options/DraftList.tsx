@@ -10,6 +10,14 @@ export function DraftList() {
   }
   useEffect(() => {
     refresh();
+    // Live refresh: the popup composer auto-saves drafts in the background.
+    // Listen for storage mutations so the list stays current without a
+    // manual reload of the options tab.
+    function onChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
+      if (area === "local" && "drafts" in changes) void refresh();
+    }
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   async function remove(key: string) {

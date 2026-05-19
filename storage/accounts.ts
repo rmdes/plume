@@ -1,3 +1,4 @@
+import { isExpired } from "../core/indieauth";
 import type { TokenData } from "../core/types";
 import type { BrowserStorage } from "./browser-storage";
 
@@ -95,7 +96,6 @@ export class AccountStore {
   ): Promise<TokenData | null> {
     const active = await this.getActive();
     if (!active) return null;
-    const { isExpired } = await import("../core/indieauth");
     if (!isExpired(active)) return active;
     if (!active.refresh_token) return active; // no refresh possible; caller handles 401
     try {
@@ -110,6 +110,16 @@ export class AccountStore {
   async getEnabledExtensions(domain: string): Promise<string[]> {
     const account = await this.get(domain);
     return (account as unknown as { enabled_extensions?: string[] })?.enabled_extensions ?? [];
+  }
+
+  /**
+   * Returns the IDs of extensions whose property keys are advertised by the
+   * server's `?q=post-types` response. Populated by `fetchAndCacheServerConfig`
+   * via `detectExtensions`. Empty array if the cache hasn't been hydrated yet.
+   */
+  async getDetectedExtensions(domain: string): Promise<string[]> {
+    const account = await this.get(domain);
+    return (account as unknown as { detected_extensions?: string[] })?.detected_extensions ?? [];
   }
 
   async setEnabledExtensions(domain: string, extensionIds: string[]): Promise<void> {

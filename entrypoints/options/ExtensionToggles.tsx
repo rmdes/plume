@@ -8,9 +8,14 @@ interface Props {
 
 export function ExtensionToggles({ domain }: Props) {
   const [enabled, setEnabled] = useState<string[]>([]);
+  const [detected, setDetected] = useState<string[]>([]);
 
   useEffect(() => {
-    accountStore().getEnabledExtensions(domain).then(setEnabled);
+    const store = accountStore();
+    store.getEnabledExtensions(domain).then(setEnabled);
+    // Server-side detection from the cached ?q=post-types response.
+    // Populated by fetchAndCacheServerConfig; empty until first hydration.
+    store.getDetectedExtensions(domain).then(setDetected);
   }, [domain]);
 
   async function toggle(id: string) {
@@ -32,6 +37,22 @@ export function ExtensionToggles({ domain }: Props) {
             />
             <span>
               <strong>{ext.label}</strong>
+              {detected.includes(ext.id) && (
+                <span
+                  title="Your server's ?q=post-types response advertises this extension's properties."
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 10,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    background: "#d1fae5",
+                    color: "#065f46",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  ✓ Server supports
+                </span>
+              )}
               <br />
               <span style={{ color: "#999" }}>
                 {ext.description}

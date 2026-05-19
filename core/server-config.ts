@@ -1,5 +1,6 @@
 import type { AccountStore } from "../storage/accounts";
 import type { ServerConfig } from "./types";
+import { detectExtensions } from "./extensions";
 import { MicropubClient } from "./micropub-client";
 
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -47,12 +48,17 @@ export async function fetchAndCacheServerConfig(
   // on its homepage and discovery only found micropub + auth endpoints),
   // write it back to the account so future uploads find it without re-fetching.
   const discoveredMediaEndpoint = merged["media-endpoint"];
+  // Scan post-types[].properties[] for extension property keys we recognize.
+  // The result is cached on the account so ExtensionToggles can surface a
+  // "✓ Server supports this" badge without re-fetching server config.
+  const detected = detectExtensions(merged);
   const updated = {
     ...account,
     media_endpoint: account.media_endpoint ?? discoveredMediaEndpoint,
     cached_config: merged,
     cached_categories: (categoriesRes as { categories?: string[] })?.categories ?? [],
     cached_at: new Date().toISOString(),
+    detected_extensions: detected,
   };
   await accounts.update(domain, updated as typeof account);
   return merged;

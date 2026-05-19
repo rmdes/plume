@@ -300,6 +300,9 @@ async function openPopupSafe(): Promise<void> {
   try {
     await chrome.action.openPopup();
   } catch {
-    await chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
+    // Tab fallback: pass ?popout=1 so the composer renders at desk-width
+    // instead of the cramped 360px toolbar layout. Same flag the explicit
+    // pop-out button uses — see entrypoints/popup/main.tsx.
+    await chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?popout=1") });
   }
 }

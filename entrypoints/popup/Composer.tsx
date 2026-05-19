@@ -1,11 +1,13 @@
 import { useEffect, useState } from "preact/hooks";
 import { AiMetadataPanel } from "../../components/AiMetadataPanel";
 import { CategoryChips } from "../../components/CategoryChips";
+import { MediaPicker } from "../../components/MediaPicker";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
+import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
-import { defaultsStore, queueStore } from "../../storage";
+import { accountStore, defaultsStore, queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
 import { useDraftAutosave } from "./useDraftAutosave";
 
@@ -29,6 +31,10 @@ interface Props {
   seed?: Partial<CreateOptions & { type: PostType }>;
   serverConfig?: ServerConfig;
   enabledExtensions?: string[];
+  // When rendered in a tab (via the pop-out button or openPopupSafe's
+  // fallback), give the textarea more vertical room so article writing
+  // doesn't feel cramped.
+  isPopout?: boolean;
   onPosted: (location: string) => void;
   onError: (message: string) => void;
 }
@@ -64,12 +70,14 @@ export function Composer({
   seed,
   serverConfig,
   enabledExtensions,
+  isPopout = false,
   onPosted,
   onError,
 }: Props) {
   const { state, patch, setType } = useComposerState(seed);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [aiDefaults, setAiDefaults] = useState<Record<string, string | undefined>>({});
   useEffect(() => {
     defaultsStore()
@@ -175,64 +183,91 @@ export function Composer({
       )}
 
       {state.type === "photo" && !state.photo?.[0] && (
-        <label
-          style={{
-            display: "grid",
-            gap: 4,
-            padding: 12,
-            border: "1px dashed #ccc",
-            borderRadius: 4,
-            fontSize: 13,
-            textAlign: "center",
-            cursor: uploading ? "wait" : "pointer",
-          }}
-        >
-          {uploading ? "Uploading…" : "Choose an image to upload"}
-          <input
-            type="file"
-            accept="image/*"
-            disabled={uploading}
-            style={{ display: "none" }}
-            onChange={async (e) => {
-              const target = e.currentTarget as HTMLInputElement;
-              const file = target.files?.[0];
-              if (!file) return;
-              setUploading(true);
-              try {
-                // Self-heal: if account.media_endpoint is missing (server didn't
-                // advertise it via <link> tag on the homepage), look it up via
-                // ?q=config which fetchAndCacheServerConfig will write back to
-                // the account record for next time.
-                let mediaEndpoint = account.media_endpoint;
-                if (!mediaEndpoint) {
-                  const { fetchAndCacheServerConfig } = await import("../../core/server-config");
-                  const { accountStore } = await import("../../storage");
-                  const domain = new URL(account.me).hostname;
-                  const config = await fetchAndCacheServerConfig(accountStore(), domain);
-                  mediaEndpoint = config["media-endpoint"];
-                  if (!mediaEndpoint) {
-                    throw new Error(
-                      `Server at ${domain} has no media-endpoint configured. ` +
-                        "Add one to your Indiekit config or check ?q=config response.",
-                    );
-                  }
-                }
-                const client = new MicropubClient({
-                  micropubEndpoint: account.micropub_endpoint,
-                  mediaEndpoint,
-                  token: account.access_token,
-                });
-                const url = await client.uploadMedia(file, file.name);
-                patch({ photo: [url] });
-              } catch (err) {
-                onError(err instanceof Error ? err.message : String(err));
-              } finally {
-                setUploading(false);
-                target.value = "";
-              }
+        <div style={{ display: "grid", gap: 6 }}>
+          <label
+            style={{
+              display: "grid",
+              gap: 4,
+              padding: 12,
+              border: "1px dashed #ccc",
+              borderRadius: 4,
+              fontSize: 13,
+              textAlign: "center",
+              cursor: uploading ? "wait" : "pointer",
             }}
-          />
-        </label>
+          >
+            {uploading ? "Uploading…" : "Choose an image to upload"}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploading}
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const target = e.currentTarget as HTMLInputElement;
+                const file = target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                  // Self-heal: if account.media_endpoint is missing (server didn't
+                  // advertise it via <link> tag on the homepage), look it up via
+                  // ?q=config which fetchAndCacheServerConfig will write back to
+                  // the account record for next time.
+                  let mediaEndpoint = account.media_endpoint;
+                  if (!mediaEndpoint) {
+                    const domain = new URL(account.me).hostname;
+                    const config = await fetchAndCacheServerConfig(accountStore(), domain);
+                    mediaEndpoint = config["media-endpoint"];
+                    if (!mediaEndpoint) {
+                      throw new Error(
+                        `Server at ${domain} has no media-endpoint configured. ` +
+                          "Add one to your Indiekit config or check ?q=config response.",
+                      );
+                    }
+                  }
+                  const client = new MicropubClient({
+                    micropubEndpoint: account.micropub_endpoint,
+                    mediaEndpoint,
+                    token: account.access_token,
+                  });
+                  const url = await client.uploadMedia(file, file.name);
+                  patch({ photo: [url] });
+                } catch (err) {
+                  onError(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setUploading(false);
+                  target.value = "";
+                }
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => setShowMediaPicker(true)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#3b82f6",
+              cursor: "pointer",
+              fontSize: 12,
+              padding: 0,
+              textAlign: "center",
+            }}
+          >
+            Or browse media already on your server →
+          </button>
+        </div>
+      )}
+
+      {showMediaPicker && (
+        <MediaPicker
+          account={account}
+          onSelect={(item) => {
+            patch({ photo: [item.url] });
+            setShowMediaPicker(false);
+          }}
+          onClose={() => setShowMediaPicker(false)}
+        />
       )}
 
       {needsTarget && (
@@ -262,13 +297,17 @@ export function Composer({
           placeholder="What's on your mind?"
           value={state.content ?? ""}
           onInput={(e) => patch({ content: (e.currentTarget as HTMLTextAreaElement).value })}
-          rows={6}
+          // Article writing needs vertical room. In popout mode use a much
+          // larger default so long-form drafts don't feel cramped on first
+          // sight; the textarea is still vertically resizable either way.
+          rows={isPopout ? 20 : state.type === "article" ? 12 : 6}
           style={{
             width: "100%",
             padding: 8,
-            fontSize: 14,
+            fontSize: isPopout ? 15 : 14,
             fontFamily: "Lora, Georgia, serif",
             resize: "vertical",
+            boxSizing: "border-box",
           }}
         />
       )}

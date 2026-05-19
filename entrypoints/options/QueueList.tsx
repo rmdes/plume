@@ -11,6 +11,14 @@ export function QueueList() {
   }
   useEffect(() => {
     refresh();
+    // Live refresh: background queue executor mutates `queue` in storage on
+    // its own schedule. Without this listener, this list goes stale until
+    // the user reloads the options page.
+    function onChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
+      if (area === "local" && "queue" in changes) void refresh();
+    }
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   async function retryNow(item: QueueItem) {
