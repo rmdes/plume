@@ -6,10 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-19
+
 ### Added
 
 - **Markdown toolbar + preview** in the composer. New toolbar above the textarea with buttons for bold, italic, link, bulleted list, numbered list, blockquote, inline code, and heading. Toolbar actions wrap the current selection (or insert a placeholder that becomes the next selection — VS Code pattern) and restore the cursor after Preact's re-render via a microtask scheduler.
-- **👁 Preview toggle** swaps the textarea for a rendered Markdown pane. Parsing uses `snarkdown` for the practical Micropub subset (paragraphs, headings, bold/italic, links, lists, code spans, blockquotes) and `DOMPurify` to neutralize any raw `<script>` / `<iframe>` / on*-handlers that might survive — important because the preview renders inside the privileged extension popup.
+- **👁 Preview toggle** swaps the textarea for a rendered Markdown pane. Parsing uses `snarkdown` for the practical Micropub subset (paragraphs, headings, bold/italic, links, lists, code spans, blockquotes) and `DOMPurify` to neutralize any raw `<script>` / `<iframe>` / on\*-handlers that might survive — important because the preview renders inside the privileged extension popup.
 - **Lazy-loaded markdown machinery**: snarkdown + DOMPurify (~27 kB combined) only download when the user clicks Preview. Cold popup-open cost grew by ~5.75 kB (toolbar component code) instead of the +32 kB that eager-loading would have cost.
 
 ## [1.1.0] — 2026-05-19

@@ -3,8 +3,8 @@
 Cross-browser Micropub client extension. Post to your IndieWeb-compatible blog
 from any page — toolbar composer or right-click context menus.
 
-**Status:** v1.1.0 — released 2026-05-19.
-[Download v1.1.0](https://github.com/rmdes/plume/releases/latest) ·
+**Status:** v1.2.0 — released 2026-05-19.
+[Download v1.2.0](https://github.com/rmdes/plume/releases/latest) ·
 [Landing page](https://rmdes.github.io/plume/) ·
 [Privacy](./PRIVACY.md)
 
@@ -47,6 +47,7 @@ and metadata you chose.
 ## Features
 
 - **Quick composer** in the toolbar popup — notes, articles, replies, bookmarks, likes, reposts, quotes, photos.
+- **Markdown toolbar + preview** — bold/italic/link/list/quote/code/heading buttons above the textarea; toggle a live rendered preview pane (snarkdown + DOMPurify, lazy-loaded).
 - **Pop-out composer** (`↗` button) opens the same composer in a tab at desk-width (480–720 px) for long-form article writing.
 - **Capture from anywhere** — right-click any page, link, selection, or image to post.
 - **MediaPicker** — browse files already on your server via `?q=source` and reuse them in new posts.
@@ -69,7 +70,7 @@ and metadata you chose.
 
 To load the Chrome build as an unpacked extension:
 
-1. Download `plume-1.1.0-chrome.zip` from the release page and extract it.
+1. Download `plume-1.2.0-chrome.zip` from the release page and extract it.
 2. Open `chrome://extensions`, enable "Developer mode" (top right).
 3. Click "Load unpacked" and select the extracted directory.
 
@@ -80,7 +81,7 @@ bun install
 bun run dev          # Chrome dev mode (hot reload)
 bun run dev:firefox  # Firefox dev mode
 bun run build        # Production build
-bun test             # Unit tests (vitest) — 113 tests
+bun test             # Unit tests (vitest) — 127 tests
 bun run test:e2e     # Playwright E2E (chromium)
 bun run screenshots  # Regenerate the screenshots above
 ```
@@ -91,7 +92,7 @@ bun run screenshots  # Regenerate the screenshots above
 - `storage/` — `chrome.storage.local` abstractions (accounts, drafts, queue, defaults, session)
 - `entrypoints/` — extension surfaces (popup, options, background service worker)
 - `components/` — shared Preact components (composer chips, AI metadata panel, MediaPicker)
-- `tests/` — vitest unit tests (113) and Playwright E2E (3 on chromium)
+- `tests/` — vitest unit tests (127) and Playwright E2E (3 on chromium)
 - `scripts/` — capture-screenshots, lint-fetch privacy enforcement
 
 Built with [WXT](https://wxt.dev) + [Preact](https://preactjs.com) +
