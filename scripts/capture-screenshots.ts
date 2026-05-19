@@ -207,10 +207,49 @@ const scenes: Scene[] = [
     filename: "3-options-accounts.png",
     url: (id) => `chrome-extension://${id}/options.html`,
     async prepare(page) {
+      // Seed a draft + a queued item so the options page reads as lived-in
+      // (rather than showing a single sparse account row with no other state).
+      await page.evaluate(async () => {
+        const now = new Date().toISOString();
+        await chrome.storage.local.set({
+          drafts: {
+            "localhost::general": {
+              type: "note",
+              content: "Half-typed thoughts on rendering microformats2…",
+              savedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            },
+            "localhost::https://aaronpk.com/2026/04/post": {
+              type: "bookmark",
+              bookmarkOf: "https://aaronpk.com/2026/04/post",
+              name: "Aaron's IndieAuth update",
+              content: "good context for the spec discussion",
+              savedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+            },
+          },
+          queue: [
+            {
+              id: "q_demo1",
+              account: "localhost",
+              createdAt: now,
+              payload: {
+                type: "note",
+                content: "Network was flaky — this will retry in the background",
+              },
+              status: "pending",
+              attempts: [{ at: now, error: "503 Service Unavailable" }],
+              nextAttempt: new Date(Date.now() + 30_000).toISOString(),
+            },
+          ],
+        });
+      });
+      // Reload so the AccountList / DraftList / QueueList re-fetch storage
+      await page.reload();
       await page.addStyleTag({ content: OPTIONS_FRAME_CSS });
       await page.waitForSelector("h1", { timeout: 5000 });
-      // Wait for the AccountList useEffect to load + render
       await page.waitForSelector('button:has-text("Remove")', { timeout: 3000 });
+      // Wait for drafts + queue sections to mount
+      await page.waitForSelector("text=Drafts (", { timeout: 3000 });
+      await page.waitForSelector("text=Retry queue (", { timeout: 3000 });
       await page.waitForTimeout(500);
     },
   },
