@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] — 2026-05-19
+
+### Fixed
+
+- Mozilla AMO submission rejected v1.0.3 with "the `data_collection_permissions` property is required for all new Firefox extensions." Added `browser_specific_settings.gecko.data_collection_permissions: { required: ["none"] }` to declare that Plume collects no user data — consistent with the PRIVACY.md posture. Chrome ignores this field; Firefox now satisfies AMO validation.
+
+### Known AMO validator warnings (not actionable; informational)
+
+- `action.setBadgeText`, `action.setBadgeBackgroundColor`, `action.openPopup` flagged as "not supported by Firefox" by AMO's validator. All three ARE supported in Firefox 127+, which we already declare as `strict_min_version`. `openPopup` has a fallback to opening in a new tab via `openPopupSafe` for browsers where it's still missing.
+- `Unsafe assignment to innerHTML` flagged in the bundled `micropub-client-*.js` chunk. The pattern is in Preact's HTML-injection handler — dead code that Plume's JSX components never reach (Plume renders only plain text and DOM children, never raw HTML strings).
+
 ## [1.0.3] — 2026-05-19
 
 ### Changed

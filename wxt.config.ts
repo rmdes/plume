@@ -46,6 +46,14 @@ export default defineConfig({
       gecko: {
         id: "plume@rmdes.net",
         strict_min_version: "127.0",
+        // Mozilla AMO requires this declaration for all new Firefox
+        // extensions. Plume sends data only to user-configured Micropub
+        // endpoints (user-initiated, not collection). No telemetry,
+        // analytics, or third-party reporting. See PRIVACY.md.
+        // Ref: https://mzl.la/firefox-builtin-data-consent
+        data_collection_permissions: {
+          required: ["none"],
+        },
       },
     },
   }),
