@@ -112,6 +112,16 @@ export class AccountStore {
     return (account as unknown as { enabled_extensions?: string[] })?.enabled_extensions ?? [];
   }
 
+  /**
+   * Returns the IDs of extensions whose property keys are advertised by the
+   * server's `?q=post-types` response. Populated by `fetchAndCacheServerConfig`
+   * via `detectExtensions`. Empty array if the cache hasn't been hydrated yet.
+   */
+  async getDetectedExtensions(domain: string): Promise<string[]> {
+    const account = await this.get(domain);
+    return (account as unknown as { detected_extensions?: string[] })?.detected_extensions ?? [];
+  }
+
   async setEnabledExtensions(domain: string, extensionIds: string[]): Promise<void> {
     const account = await this.get(domain);
     if (!account) return;
