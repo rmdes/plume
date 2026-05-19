@@ -227,3 +227,61 @@ describe("MicropubClient.uploadMedia", () => {
     await expect(client.uploadMedia(blob, "x.png")).rejects.toThrow(/No media endpoint/);
   });
 });
+
+describe("MicropubClient.listMedia", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("queries the media endpoint with q=source + limit, returns the items+paging shape", async () => {
+    const expected = {
+      items: [
+        {
+          url: "https://example.com/files/a.png",
+          uid: "abc",
+          "media-type": "image/png",
+          published: "2026-05-01T12:00:00.000Z",
+        },
+        {
+          url: "https://example.com/files/b.jpg",
+          uid: "def",
+          "media-type": "image/jpeg",
+        },
+      ],
+      paging: { after: "cursor-old" },
+    };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify(expected), { status: 200 }));
+    const client = new MicropubClient(config);
+    const result = await client.listMedia({ limit: 12 });
+    expect(result).toEqual(expected);
+    const call = fetchSpy.mock.calls[0];
+    if (!call) throw new Error("no fetch call recorded");
+    const url = String(call[0]);
+    expect(url.startsWith("https://example.com/media")).toBe(true);
+    expect(url).toContain("q=source");
+    expect(url).toContain("limit=12");
+    const headers = (call[1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer test-token");
+  });
+
+  it("includes after and before cursors when provided", async () => {
+    // Per-call fresh Response — a Response body can only be read once.
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    const client = new MicropubClient(config);
+    await client.listMedia({ limit: 5, after: "cursor-xyz" });
+    let url = String(fetchSpy.mock.calls[0]?.[0]);
+    expect(url).toContain("after=cursor-xyz");
+    expect(url).not.toContain("before=");
+
+    await client.listMedia({ before: "cursor-abc" });
+    url = String(fetchSpy.mock.calls[1]?.[0]);
+    expect(url).toContain("before=cursor-abc");
+  });
+
+  it("throws when media endpoint not configured", async () => {
+    const client = new MicropubClient({ ...config, mediaEndpoint: undefined });
+    await expect(client.listMedia()).rejects.toThrow(/No media endpoint/);
+  });
+});

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { AiMetadataPanel } from "../../components/AiMetadataPanel";
 import { CategoryChips } from "../../components/CategoryChips";
+import { MediaPicker } from "../../components/MediaPicker";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
@@ -70,6 +71,7 @@ export function Composer({
   const { state, patch, setType } = useComposerState(seed);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [aiDefaults, setAiDefaults] = useState<Record<string, string | undefined>>({});
   useEffect(() => {
     defaultsStore()
@@ -175,64 +177,93 @@ export function Composer({
       )}
 
       {state.type === "photo" && !state.photo?.[0] && (
-        <label
-          style={{
-            display: "grid",
-            gap: 4,
-            padding: 12,
-            border: "1px dashed #ccc",
-            borderRadius: 4,
-            fontSize: 13,
-            textAlign: "center",
-            cursor: uploading ? "wait" : "pointer",
-          }}
-        >
-          {uploading ? "Uploading…" : "Choose an image to upload"}
-          <input
-            type="file"
-            accept="image/*"
-            disabled={uploading}
-            style={{ display: "none" }}
-            onChange={async (e) => {
-              const target = e.currentTarget as HTMLInputElement;
-              const file = target.files?.[0];
-              if (!file) return;
-              setUploading(true);
-              try {
-                // Self-heal: if account.media_endpoint is missing (server didn't
-                // advertise it via <link> tag on the homepage), look it up via
-                // ?q=config which fetchAndCacheServerConfig will write back to
-                // the account record for next time.
-                let mediaEndpoint = account.media_endpoint;
-                if (!mediaEndpoint) {
-                  const { fetchAndCacheServerConfig } = await import("../../core/server-config");
-                  const { accountStore } = await import("../../storage");
-                  const domain = new URL(account.me).hostname;
-                  const config = await fetchAndCacheServerConfig(accountStore(), domain);
-                  mediaEndpoint = config["media-endpoint"];
-                  if (!mediaEndpoint) {
-                    throw new Error(
-                      `Server at ${domain} has no media-endpoint configured. ` +
-                        "Add one to your Indiekit config or check ?q=config response.",
-                    );
-                  }
-                }
-                const client = new MicropubClient({
-                  micropubEndpoint: account.micropub_endpoint,
-                  mediaEndpoint,
-                  token: account.access_token,
-                });
-                const url = await client.uploadMedia(file, file.name);
-                patch({ photo: [url] });
-              } catch (err) {
-                onError(err instanceof Error ? err.message : String(err));
-              } finally {
-                setUploading(false);
-                target.value = "";
-              }
+        <div style={{ display: "grid", gap: 6 }}>
+          <label
+            style={{
+              display: "grid",
+              gap: 4,
+              padding: 12,
+              border: "1px dashed #ccc",
+              borderRadius: 4,
+              fontSize: 13,
+              textAlign: "center",
+              cursor: uploading ? "wait" : "pointer",
             }}
-          />
-        </label>
+          >
+            {uploading ? "Uploading…" : "Choose an image to upload"}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploading}
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const target = e.currentTarget as HTMLInputElement;
+                const file = target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                  // Self-heal: if account.media_endpoint is missing (server didn't
+                  // advertise it via <link> tag on the homepage), look it up via
+                  // ?q=config which fetchAndCacheServerConfig will write back to
+                  // the account record for next time.
+                  let mediaEndpoint = account.media_endpoint;
+                  if (!mediaEndpoint) {
+                    const { fetchAndCacheServerConfig } = await import("../../core/server-config");
+                    const { accountStore } = await import("../../storage");
+                    const domain = new URL(account.me).hostname;
+                    const config = await fetchAndCacheServerConfig(accountStore(), domain);
+                    mediaEndpoint = config["media-endpoint"];
+                    if (!mediaEndpoint) {
+                      throw new Error(
+                        `Server at ${domain} has no media-endpoint configured. ` +
+                          "Add one to your Indiekit config or check ?q=config response.",
+                      );
+                    }
+                  }
+                  const client = new MicropubClient({
+                    micropubEndpoint: account.micropub_endpoint,
+                    mediaEndpoint,
+                    token: account.access_token,
+                  });
+                  const url = await client.uploadMedia(file, file.name);
+                  patch({ photo: [url] });
+                } catch (err) {
+                  onError(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setUploading(false);
+                  target.value = "";
+                }
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => setShowMediaPicker(true)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#3b82f6",
+              cursor: "pointer",
+              fontSize: 12,
+              padding: 0,
+              textAlign: "center",
+            }}
+          >
+            Or browse media already on your server →
+          </button>
+        </div>
+      )}
+
+      {showMediaPicker && (
+        <MediaPicker
+          account={account}
+          onSelect={(item) => {
+            patch({ photo: [item.url] });
+            setShowMediaPicker(false);
+          }}
+          onClose={() => setShowMediaPicker(false)}
+        />
       )}
 
       {needsTarget && (

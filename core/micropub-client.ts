@@ -1,4 +1,11 @@
-import type { CreateOptions, CreateResult, QueryOptions, UpdateOptions } from "./types";
+import type {
+  CreateOptions,
+  CreateResult,
+  ListMediaOptions,
+  MediaListResponse,
+  QueryOptions,
+  UpdateOptions,
+} from "./types";
 
 export interface MicropubClientConfig {
   micropubEndpoint: string;
@@ -146,5 +153,32 @@ export class MicropubClient {
       throw new Error("Media endpoint returned success but no Location header");
     }
     return location;
+  }
+
+  /**
+   * List existing media files on the server via `?q=source` on the media endpoint.
+   *
+   * This is a Micropub extension (not in the core W3C spec) that Indiekit and
+   * several other servers implement. Returns a paginated `items` array with
+   * `url`, `uid`, `media-type`, `published`, plus optional `paging.after` /
+   * `paging.before` cursors for navigation.
+   */
+  async listMedia(options: ListMediaOptions = {}): Promise<MediaListResponse> {
+    if (!this.mediaEndpoint) {
+      throw new Error("No media endpoint configured. Query ?q=config to check.");
+    }
+    const url = new URL(this.mediaEndpoint);
+    url.searchParams.set("q", "source");
+    if (options.limit !== undefined) url.searchParams.set("limit", String(options.limit));
+    if (options.after) url.searchParams.set("after", options.after);
+    if (options.before) url.searchParams.set("before", options.before);
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        Accept: "application/json",
+      },
+    });
+    await this.checkError(response);
+    return response.json() as Promise<MediaListResponse>;
   }
 }

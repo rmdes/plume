@@ -71,6 +71,27 @@ export interface CreateResult {
   status: number;
 }
 
+// `?q=source` on the media endpoint — Micropub extension that Indiekit and
+// several other servers implement. Returns a paginated list of uploaded files
+// for the MediaPicker UI in the Photo composer.
+export interface MediaItem {
+  url: string;
+  uid?: string;
+  "media-type"?: string;
+  published?: string;
+}
+
+export interface MediaListResponse {
+  items: MediaItem[];
+  paging?: { after?: string; before?: string };
+}
+
+export interface ListMediaOptions {
+  limit?: number;
+  after?: string;
+  before?: string;
+}
+
 export interface ServerConfig {
   "media-endpoint"?: string;
   "syndicate-to"?: Array<{ uid: string; name: string }>;
