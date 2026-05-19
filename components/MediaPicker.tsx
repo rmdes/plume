@@ -29,12 +29,27 @@ export function MediaPicker({ account, onSelect, onClose }: Props) {
     setLoading(true);
     setError(null);
     try {
-      if (!account.media_endpoint) {
-        throw new Error("This account has no media endpoint configured.");
+      // Self-heal: if the cached account record is missing media_endpoint (the
+      // site didn't declare <link rel="media-endpoint"> on its homepage), look
+      // it up via ?q=config. fetchAndCacheServerConfig writes the discovered
+      // endpoint back to the account for next time, so this is a one-time hit.
+      let mediaEndpoint = account.media_endpoint;
+      if (!mediaEndpoint) {
+        const { fetchAndCacheServerConfig } = await import("../core/server-config");
+        const { accountStore } = await import("../storage");
+        const domain = new URL(account.me).hostname;
+        const config = await fetchAndCacheServerConfig(accountStore(), domain);
+        mediaEndpoint = config["media-endpoint"];
+        if (!mediaEndpoint) {
+          throw new Error(
+            `Server at ${domain} has no media-endpoint configured. ` +
+              "Add one to your Indiekit config or check ?q=config response.",
+          );
+        }
       }
       const client = new MicropubClient({
         micropubEndpoint: account.micropub_endpoint,
-        mediaEndpoint: account.media_endpoint,
+        mediaEndpoint,
         token: account.access_token,
       });
       const result = await client.listMedia({ limit: PAGE_SIZE, ...cursor });
