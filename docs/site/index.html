@@ -13,9 +13,11 @@
       MUST be kept verbatim — the Plume extension and IndieAuth servers depend
       on these <link rel="redirect_uri"> tags for the auth flow.
     -->
-    <!-- Pinned Chrome dev extension ID (derived from manifest.key) -->
+    <!-- Pinned Chrome dev extension ID (derived from manifest.key in development mode) -->
     <link rel="redirect_uri" href="https://kjfcmmliahijkokkhgellflmefpfglin.chromiumapp.org/" />
-    <!-- Wildcard fallback for unpacked dev installs and future Chrome Web Store production ID -->
+    <!-- Pinned Chrome Web Store production extension ID (assigned at first upload) -->
+    <link rel="redirect_uri" href="https://hcphdjeoolimpjjekegpobkhoealiige.chromiumapp.org/" />
+    <!-- Wildcard fallback for unpacked dev installs that don't match the pinned dev key -->
     <link rel="redirect_uri" href="https://*.chromiumapp.org/" />
     <!-- Firefox addon callback (UUID is per-install, can't be pinned) -->
     <link rel="redirect_uri" href="https://*.extensions.allizom.org/" />
@@ -414,16 +416,21 @@
             This page is Plume's IndieAuth <code>client_id</code> URL. When the extension initiates
             authentication, your IndieAuth server fetches this URL and reads the
             <code>&lt;link rel="redirect_uri"&gt;</code> entries in the <code>&lt;head&gt;</code> to
-            verify the OAuth callback. Three patterns are declared:
+            verify the OAuth callback. Four patterns are declared:
           </p>
           <ul>
             <li>
               <code>https://kjfcmmliahijkokkhgellflmefpfglin.chromiumapp.org/</code> — pinned Chrome
-              extension ID (matches the <code>manifest.key</code> field, stable across dev installs)
+              dev extension ID (derived from <code>manifest.key</code> in development mode; stable
+              across unpacked installs)
+            </li>
+            <li>
+              <code>https://hcphdjeoolimpjjekegpobkhoealiige.chromiumapp.org/</code> — pinned Chrome
+              Web Store production extension ID (assigned at first upload)
             </li>
             <li>
               <code>https://*.chromiumapp.org/</code> — wildcard fallback for unpacked dev installs
-              and the future Chrome Web Store production ID
+              that don't match the pinned dev key
             </li>
             <li>
               <code>https://*.extensions.allizom.org/</code> — Firefox addon callback (UUID is
