@@ -6,14 +6,41 @@ import path from "node:path";
 const EXT_DIR = path.resolve("./.output/chrome-mv3");
 const TEST_ORIGIN = "http://localhost:18750/*";
 
+// Tracks every prepared extension dir this process created so we can clean
+// them up at exit. Without this, /tmp/plume-ext-* directories accumulate
+// across runs (one per test invocation) and stick around indefinitely.
+const PREPARED_DIRS = new Set<string>();
+let exitHookRegistered = false;
+
+function registerCleanupOnce(): void {
+  if (exitHookRegistered) return;
+  exitHookRegistered = true;
+  // `exit` is synchronous-only — perfect for rm. Playwright workers exit
+  // cleanly between specs; this fires once per worker process.
+  process.on("exit", () => {
+    for (const dir of PREPARED_DIRS) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Best-effort cleanup; never throw from an exit handler.
+      }
+    }
+  });
+}
+
 /**
  * Copy the built extension to a fresh tmp dir and patch manifest.json to grant
  * the mock-server origin as a non-optional host permission. This avoids the
  * user-gesture requirement of `chrome.permissions.request` in tests while
  * leaving production manifest untouched.
+ *
+ * The returned dir is registered for cleanup on process exit — see
+ * `registerCleanupOnce` above.
  */
 function prepareTestExtensionDir(): string {
+  registerCleanupOnce();
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "plume-ext-"));
+  PREPARED_DIRS.add(tmp);
   // Recursive copy
   fs.cpSync(EXT_DIR, tmp, { recursive: true });
   const manifestPath = path.join(tmp, "manifest.json");
