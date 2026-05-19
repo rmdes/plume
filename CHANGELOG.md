@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-05-19
+
+### Changed
+
+- Dev-mode `manifest.key` now uses the Chrome Web Store production public key (assigned to the published extension after first upload). Unpacked dev installs and CWS-installed users now share the same extension ID (`hcphdjeoolimpjjekegpobkhoealiige`) and the same `chromiumapp.org` OAuth callback URL.
+- Pages site simplified from four redirect_uri declarations to three — the orphaned self-generated dev pin (`kjfcmmliahijkokkhgellflmefpfglin.chromiumapp.org`) is removed since no install will ever derive that ID now.
+
 ## [1.0.2] — 2026-05-19
 
 ### Fixed
