@@ -253,7 +253,9 @@
           </p>
           <div class="badges">
             <a class="badge" href="https://github.com/rmdes/plume">Source on GitHub</a>
-            <a class="badge" href="https://github.com/rmdes/plume/releases/latest">Download v1.0</a>
+            <a class="badge" href="https://github.com/rmdes/plume/releases/latest"
+              >Download latest</a
+            >
             <span class="badge pending" title="Pending store review">Chrome Web Store · soon</span>
             <span class="badge pending" title="Pending store review">Mozilla AMO · soon</span>
           </div>
@@ -442,6 +444,38 @@
             >
             similarly.
           </p>
+
+          <h2 style="margin-top: 2.5rem">On the AI transparency convention</h2>
+          <p>
+            Plume ships with an opt-in panel for the AI transparency metadata convention defined by
+            Ricardo Mendes at
+            <a
+              href="https://rmendes.net/articles/2026/03/03/adding-ai-usage-metadata-to/"
+              style="color: var(--ink)"
+              >Adding AI usage metadata to posts</a
+            >. The convention proposes four mf2 properties on h-entry posts:
+            <code>ai-text-level</code> (0–3), <code>ai-code-level</code> (0–2),
+            <code>ai-tools</code>, and <code>ai-description</code>. This isn't (yet) a Micropub or
+            IndieWeb specification &mdash; it's a working convention with a reference server
+            implementation in
+            <a
+              href="https://www.npmjs.com/package/@rmdes/indiekit-endpoint-posts"
+              style="color: var(--ink)"
+              ><code>@rmdes/indiekit-endpoint-posts</code></a
+            >
+            and a reference client implementation in Plume.
+          </p>
+          <p>
+            For v1.0.x, accounts opt in manually via the Plume options page. For v1.1, Plume will
+            auto-detect support by scanning the Micropub server's <code>?q=post-types</code>
+            response and matching known extension property names against each post type's
+            <code>properties[]</code> array. This uses only spec-defined Micropub surface (<code
+              >properties[]</code
+            >
+            on <code>?q=post-types</code> entries is documented to list the mf2 fields a post type
+            accepts), so any Micropub server that advertises the AI metadata fields the standard way
+            will work with Plume automatically &mdash; no vendor-specific discovery field required.
+          </p>
         </div>
       </section>
     </main>
@@ -449,7 +483,7 @@
     <footer>
       <div class="container">
         <div>
-          <strong style="color: var(--ink-deep)">Plume v1.0</strong> — MIT licensed, no telemetry.
+          <strong style="color: var(--ink-deep)">Plume v1.0.1</strong> — MIT licensed, no telemetry.
         </div>
         <div>
           <a href="https://github.com/rmdes/plume">Source</a> &nbsp;·&nbsp;

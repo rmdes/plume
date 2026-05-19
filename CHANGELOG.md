@@ -6,6 +6,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-05-19
+
+### Fixed
+
+- Photo tab in the composer now has a file picker (was missing — only the post-upload preview rendered in v1.0).
+- Media endpoint self-heals via `?q=config` when not advertised on the homepage's `<link rel="media-endpoint">` tag; account record gets updated on first server-config fetch.
+- Background `refreshMenus` race condition that caused console errors on account add (duplicate context-menu IDs).
+- `chrome.action.openPopup()` falls back to opening `popup.html` in a new tab when the calling window has no toolbar (Vivaldi side panels, dev-tools popouts).
+- Image context menu now requests `chrome.permissions` for the image's origin per-domain (was failing CORS-blocked for any origin not in the active account's grant).
+
+### Added
+
+- Pinned Chrome extension key in manifest for stable dev ID (`kjfcmmliahijkokkhgellflmefpfglin`) — survives reinstalls and matches the URL declared on the GitHub Pages `client_id` site.
+- Convention attribution links in the AI metadata UI — both the options-page extension toggle and the composer panel link to the convention author's rationale.
+- GitHub Pages landing page with 4 screenshots (replaces the discovery-only stub).
+- `bun run screenshots` script — reproducible Playwright capture of store-listing PNGs from a built extension + mock server.
+
+### Changed
+
+- Spec-honest framing in CHANGELOG's v1.1 plan: extension auto-detection will use the existing `?q=post-types` `properties[]` array (spec-compliant) rather than a vendor-invented `mp-extensions` discovery field.
+
+### Removed
+
+- `activeTab` permission. Declared in v1.0 but never exercised — the context-menu prefill flow uses `contextMenus` alone (`info.pageUrl` + `tab.title` are provided by the `onClicked` event, no scripting access needed).
+- `mp-extensions` type slot in `ServerConfig` — aspirational interface for a never-shipped invention.
+
+## [1.0.0] — 2026-05-18
+
 ### Planned for v1.1
 
 - **MediaPicker**: browse and reuse existing files uploaded to the media endpoint, via `?q=source` paginated query. Saves re-uploading photos that already live on the server.
