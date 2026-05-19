@@ -1,6 +1,8 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { AiMetadataPanel } from "../../components/AiMetadataPanel";
 import { CategoryChips } from "../../components/CategoryChips";
+import { MarkdownPreview } from "../../components/MarkdownPreview";
+import { MarkdownToolbar } from "../../components/MarkdownToolbar";
 import { MediaPicker } from "../../components/MediaPicker";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
@@ -78,7 +80,11 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [aiDefaults, setAiDefaults] = useState<Record<string, string | undefined>>({});
+  // Ref handed to the markdown toolbar so it can read the current selection
+  // when applying wrap/prefix actions and restore the cursor afterward.
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     defaultsStore()
       .get()
@@ -293,23 +299,41 @@ export function Composer({
       )}
 
       {allowsContent && (
-        <textarea
-          placeholder="What's on your mind?"
-          value={state.content ?? ""}
-          onInput={(e) => patch({ content: (e.currentTarget as HTMLTextAreaElement).value })}
-          // Article writing needs vertical room. In popout mode use a much
-          // larger default so long-form drafts don't feel cramped on first
-          // sight; the textarea is still vertically resizable either way.
-          rows={isPopout ? 20 : state.type === "article" ? 12 : 6}
-          style={{
-            width: "100%",
-            padding: 8,
-            fontSize: isPopout ? 15 : 14,
-            fontFamily: "Lora, Georgia, serif",
-            resize: "vertical",
-            boxSizing: "border-box",
-          }}
-        />
+        <div style={{ display: "grid", gap: 4 }}>
+          <MarkdownToolbar
+            textareaRef={contentRef}
+            value={state.content ?? ""}
+            onChange={(next) => patch({ content: next })}
+            preview={showPreview}
+            onTogglePreview={() => setShowPreview((v) => !v)}
+            compact={!isPopout}
+          />
+          {showPreview ? (
+            <MarkdownPreview
+              source={state.content ?? ""}
+              minHeight={isPopout ? 360 : state.type === "article" ? 220 : 120}
+            />
+          ) : (
+            <textarea
+              ref={contentRef}
+              placeholder="What's on your mind? Markdown supported."
+              value={state.content ?? ""}
+              onInput={(e) => patch({ content: (e.currentTarget as HTMLTextAreaElement).value })}
+              // Article writing needs vertical room. In popout mode use a much
+              // larger default so long-form drafts don't feel cramped on first
+              // sight; the textarea is still vertically resizable either way.
+              rows={isPopout ? 20 : state.type === "article" ? 12 : 6}
+              style={{
+                width: "100%",
+                padding: 8,
+                fontSize: isPopout ? 15 : 14,
+                fontFamily: "Lora, Georgia, serif",
+                resize: "vertical",
+                boxSizing: "border-box",
+              }}
+            />
+          )}
+        </div>
       )}
 
       <CategoryChips
