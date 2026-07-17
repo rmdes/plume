@@ -23,6 +23,7 @@ const isPopout =
 
 function Popup() {
   const [account, setAccount] = useState<TokenData | null | undefined>(undefined);
+  const [accounts, setAccounts] = useState<TokenData[]>([]);
   const [prefill, setPrefill] = useState<PrefillState | null>(null);
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [enabledExtensions, setEnabledExtensions] = useState<string[]>([]);
@@ -37,6 +38,7 @@ function Popup() {
     (async () => {
       const a = await accountStore().getActiveRefreshed((tok) => refreshToken(tok, CLIENT_ID));
       setAccount(a);
+      accountStore().list().then(setAccounts);
       if (!a) {
         setPrefill({});
         return;
@@ -62,6 +64,16 @@ function Popup() {
 
   function openOptions() {
     chrome.runtime.openOptionsPage();
+  }
+
+  async function switchAccount(domain: string) {
+    await accountStore().setDefault(domain);
+    // Re-seed the prefill so a context-menu seed (bookmark URL etc.) survives
+    // the reload under the newly selected account.
+    if (prefill && Object.keys(prefill).length > 0) {
+      await sessionStorage().set({ [PREFILL_KEY]: prefill });
+    }
+    window.location.reload();
   }
 
   if (account === undefined || prefill === null) {
@@ -110,7 +122,36 @@ function Popup() {
           color: "#666",
         }}
       >
-        <span>🪶 Plume · {new URL(account.me).hostname}</span>
+        <span>
+          🪶 Plume ·{" "}
+          {accounts.length > 1 ? (
+            <select
+              value={new URL(account.me).hostname}
+              onChange={(e) => void switchAccount(e.currentTarget.value)}
+              aria-label="Account to post from"
+              title="Switch posting account"
+              style={{
+                border: "none",
+                background: "none",
+                color: "#666",
+                font: "inherit",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              {accounts.map((a) => {
+                const d = new URL(a.me).hostname;
+                return (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                );
+              })}
+            </select>
+          ) : (
+            new URL(account.me).hostname
+          )}
+        </span>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {!isPopout && (
             <button

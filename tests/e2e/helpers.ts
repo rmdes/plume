@@ -62,6 +62,9 @@ export async function launchWithExtension(
     const extDir = prepareTestExtensionDir();
     return chromium.launchPersistentContext("", {
       headless: false, // MV3 service workers don't run in headless
+      // Escape hatch for machines where Playwright's bundled Chromium is
+      // unavailable (e.g. OS newer than the pinned Playwright supports).
+      executablePath: process.env.CHROME_PATH || undefined,
       args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`],
     });
   }

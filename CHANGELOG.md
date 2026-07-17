@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-17
+
+### Added
+
+- **Account switcher in the popup.** With more than one account connected, the hostname in the popup header becomes a dropdown. Picking an account makes it the active posting identity (same effect as "Set default" on the options page) and reloads the composer with that account's server config, enabled extensions, and per-domain draft. Context-menu prefills (bookmark/reply/like/repost seeds) survive the switch. With a single account the header is unchanged.
+- **E2E: `CHROME_PATH` env override** in `launchWithExtension` for machines where Playwright's pinned Chromium is unavailable (e.g. OS releases newer than the pin supports). CI behavior unchanged.
+
 ## [1.2.0] — 2026-05-19
 
 ### Added
