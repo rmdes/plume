@@ -1,3 +1,5 @@
+import { browser } from "./browser-api";
+
 export const CLIENT_ID = "https://rmdes.github.io/plume/";
 export const DEFAULT_SCOPE = "create update delete media";
 
@@ -8,5 +10,5 @@ export const DEFAULT_SCOPE = "create update delete media";
  * API computes it correctly via getRedirectURL().
  */
 export function getRedirectUri(): string {
-  return chrome.identity.getRedirectURL();
+  return browser.identity.getRedirectURL();
 }

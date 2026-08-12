@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { browser } from "../../core/browser-api";
 import { draftStore } from "../../storage";
 import type { ListedDraft } from "../../storage";
 
@@ -16,8 +17,8 @@ export function DraftList() {
     function onChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
       if (area === "local" && "drafts" in changes) void refresh();
     }
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
+    browser.storage.onChanged.addListener(onChanged);
+    return () => browser.storage.onChanged.removeListener(onChanged);
   }, []);
 
   async function remove(key: string) {

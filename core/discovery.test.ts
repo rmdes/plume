@@ -1,5 +1,45 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { discoverEndpoints, parseHtmlLinks, parseLinkHeaders } from "./discovery";
+import { discoverEndpoints, endpointOrigins, parseHtmlLinks, parseLinkHeaders } from "./discovery";
+
+describe("endpointOrigins", () => {
+  it("collapses same-origin endpoints to a single pattern", () => {
+    expect(
+      endpointOrigins({
+        micropub: "https://rmendes.net/micropub",
+        token_endpoint: "https://rmendes.net/auth/token",
+        media_endpoint: "https://rmendes.net/media",
+      }),
+    ).toEqual(["https://rmendes.net/*"]);
+  });
+
+  it("returns every origin when IndieAuth is delegated elsewhere", () => {
+    // Real-world shape reported from srijan.ch: micropub on the blog, token
+    // exchange on indieauth.com. Granting only the blog origin made the token
+    // POST fail CORS with an opaque "Failed to fetch".
+    expect(
+      endpointOrigins({
+        micropub: "https://srijan.ch/micropub",
+        token_endpoint: "https://tokens.indieauth.com/token",
+        authorization_endpoint: "https://indieauth.com/auth",
+      }),
+    ).toEqual(["https://srijan.ch/*", "https://tokens.indieauth.com/*"]);
+  });
+
+  it("omits the authorization endpoint, which is opened but never fetched", () => {
+    expect(
+      endpointOrigins({
+        micropub: "https://srijan.ch/micropub",
+        authorization_endpoint: "https://indieauth.com/auth",
+      }),
+    ).toEqual(["https://srijan.ch/*"]);
+  });
+
+  it("skips relative or malformed endpoint hrefs", () => {
+    expect(
+      endpointOrigins({ micropub: "/micropub", token_endpoint: "https://example.com/token" }),
+    ).toEqual(["https://example.com/*"]);
+  });
+});
 
 describe("parseLinkHeaders", () => {
   it("returns empty object for null input", () => {
