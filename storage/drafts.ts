@@ -1,4 +1,5 @@
 import type { CreateOptions } from "../core/types";
+
 import type { BrowserStorage } from "./browser-storage";
 
 const DRAFTS_KEY = "drafts";
@@ -11,7 +12,29 @@ export interface Draft extends Partial<CreateOptions> {
 
 export interface ListedDraft {
   key: string; // "${domain}::${scope}"
+  domain: string;
+  scope: string;
   draft: Draft;
+}
+
+/**
+ * The scope half of a draft's storage key: the URL a post targets, or
+ * "general" for standalone notes and articles.
+ *
+ * Must be `||`, not `??`. The composer patches the target field to `""` as
+ * soon as the post type is a target type (reply/bookmark/like/repost/quote),
+ * and an empty string is not nullish — so `??` filed those drafts under
+ * "domain::". The popup then looked for them under "domain::general" and
+ * never restored them, post-success cleanup never deleted them, and the
+ * options list's delete button bailed on its own falsy-scope guard.
+ *
+ * Keep every call site on this helper: the save, load, and delete paths live
+ * in different files and silently diverged when each computed its own.
+ */
+export function draftScope(
+  post: Pick<CreateOptions, "bookmarkOf" | "inReplyTo" | "likeOf" | "repostOf">,
+): string {
+  return post.bookmarkOf || post.inReplyTo || post.likeOf || post.repostOf || "general";
 }
 
 export class DraftStore {
@@ -62,6 +85,17 @@ export class DraftStore {
 
   async list(): Promise<ListedDraft[]> {
     const all = await this.readAll();
-    return Object.entries(all).map(([key, draft]) => ({ key, draft }));
+    return Object.entries(all).map(([key, draft]) => {
+      // First separator only. The scope is a URL and may contain "::" itself
+      // (an IPv6 host, a query string), which split("::", 2) would truncate —
+      // yielding a scope that no longer addresses the draft it came from.
+      const at = key.indexOf("::");
+      return {
+        key,
+        domain: at === -1 ? key : key.slice(0, at),
+        scope: at === -1 ? "" : key.slice(at + 2),
+        draft,
+      };
+    });
   }
 }

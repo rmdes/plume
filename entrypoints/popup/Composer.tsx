@@ -9,7 +9,7 @@ import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
-import { accountStore, defaultsStore, queueStore } from "../../storage";
+import { accountStore, defaultsStore, draftScope, queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
 import { useDraftAutosave } from "./useDraftAutosave";
 
@@ -117,7 +117,7 @@ export function Composer({
     patch({ [field]: targetUrl } as Partial<typeof state>);
   }, [targetUrl, state.type, patch]);
 
-  const scope = state.bookmarkOf ?? state.inReplyTo ?? state.likeOf ?? state.repostOf ?? "general";
+  const scope = draftScope(state);
   useDraftAutosave({
     domain: new URL(account.me).hostname,
     scope,
