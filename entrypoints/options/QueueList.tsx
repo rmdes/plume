@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { browser } from "../../core/browser-api";
 import { MicropubClient } from "../../core/micropub-client";
 import { accountStore, queueStore } from "../../storage";
 import type { QueueItem } from "../../storage";
@@ -17,8 +18,8 @@ export function QueueList() {
     function onChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
       if (area === "local" && "queue" in changes) void refresh();
     }
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
+    browser.storage.onChanged.addListener(onChanged);
+    return () => browser.storage.onChanged.removeListener(onChanged);
   }, []);
 
   async function retryNow(item: QueueItem) {

@@ -1,5 +1,6 @@
 import { CLIENT_ID } from "../core/auth-config";
 import { computeBadgeState } from "../core/badge";
+import { action, browser } from "../core/browser-api";
 import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
 import { fetchImageAsBlob, filenameFromUrl, ImageFetchError } from "../core/image-fetch";
 import { refreshToken } from "../core/indieauth";
@@ -32,7 +33,7 @@ export default defineBackground(() => {
     try {
       do {
         menuRefreshPending = false;
-        await chrome.contextMenus.removeAll();
+        await browser.contextMenus.removeAll();
         const active = await accountStore().getActive();
         const hasMedia = !!active?.media_endpoint;
         // Create the parent first (children reference it via parentId),
@@ -51,7 +52,7 @@ export default defineBackground(() => {
 
   function createMenuItem(item: (typeof MENU_ITEMS)[number]): Promise<void> {
     return new Promise((resolve) => {
-      chrome.contextMenus.create(
+      browser.contextMenus.create(
         {
           id: item.id,
           title: item.title,
@@ -63,7 +64,7 @@ export default defineBackground(() => {
           // doesn't log an "Unchecked runtime.lastError" warning.
           // Duplicate-id errors are expected during SW-restart races and
           // are functionally harmless (the item already exists).
-          const err = chrome.runtime.lastError;
+          const err = browser.runtime.lastError;
           if (err && !/duplicate id/i.test(err.message ?? "")) {
             console.warn(`[plume] contextMenus.create(${item.id}):`, err.message);
           }
@@ -76,18 +77,18 @@ export default defineBackground(() => {
   const QUEUE_ALARM = "plume-queue-tick";
   const TOKEN_ALARM = "plume-token-refresh";
 
-  chrome.runtime.onInstalled.addListener(() => {
+  browser.runtime.onInstalled.addListener(() => {
     refreshMenus();
-    chrome.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 });
-    chrome.alarms.create(TOKEN_ALARM, { periodInMinutes: 1440 });
+    browser.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 });
+    browser.alarms.create(TOKEN_ALARM, { periodInMinutes: 1440 });
     updateBadge();
   });
 
-  chrome.runtime.onStartup.addListener(() => {
+  browser.runtime.onStartup.addListener(() => {
     updateBadge();
   });
 
-  chrome.alarms.onAlarm.addListener(async (alarm) => {
+  browser.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === QUEUE_ALARM) {
       await runRetryTick({
         queue: queueStoreFactory(),
@@ -109,7 +110,7 @@ export default defineBackground(() => {
     }
   });
 
-  chrome.storage.onChanged.addListener((changes, area) => {
+  browser.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.accounts || changes.defaults) {
       refreshMenus().catch((e) => console.error("refreshMenus failed", e));
@@ -119,7 +120,7 @@ export default defineBackground(() => {
     }
   });
 
-  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  browser.contextMenus.onClicked.addListener(async (info, tab) => {
     const prefill = buildPrefillFromContextInfo(info, { title: tab?.title });
     if (!prefill) return;
     // Image-post flow handled in Phase 6 (fetch + media-upload before opening popup)
@@ -146,8 +147,8 @@ async function updateBadge(): Promise<void> {
     hasAuthNeeded: await queue.hasAuthNeeded(),
     queueCount: await queue.count(),
   });
-  await chrome.action.setBadgeText({ text: state.text });
-  await chrome.action.setBadgeBackgroundColor({ color: state.color });
+  await action.setBadgeText({ text: state.text });
+  await action.setBadgeBackgroundColor({ color: state.color });
 }
 
 async function handleNotify(event: NotifyEvent): Promise<void> {
@@ -156,26 +157,26 @@ async function handleNotify(event: NotifyEvent): Promise<void> {
   switch (event.kind) {
     case "success":
       if (shouldNotifySuccess) {
-        chrome.notifications.create({
+        browser.notifications.create({
           type: "basic",
-          iconUrl: chrome.runtime.getURL("/icon/128.png"),
+          iconUrl: browser.runtime.getURL("/icon/128.png"),
           title: "Plume",
           message: `Posted to ${event.domain}`,
         });
       }
       break;
     case "auth_needed":
-      chrome.notifications.create({
+      browser.notifications.create({
         type: "basic",
-        iconUrl: chrome.runtime.getURL("/icon/128.png"),
+        iconUrl: browser.runtime.getURL("/icon/128.png"),
         title: "Plume — reconnect required",
         message: event.message,
       });
       break;
     case "permanent_failure":
-      chrome.notifications.create({
+      browser.notifications.create({
         type: "basic",
-        iconUrl: chrome.runtime.getURL("/icon/128.png"),
+        iconUrl: browser.runtime.getURL("/icon/128.png"),
         title: "Plume — post failed",
         message: event.message,
       });
@@ -242,12 +243,12 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
   }
   // Request host permission for the image's origin if not already granted.
   // The contextMenus.onClicked event qualifies as a user gesture, so
-  // chrome.permissions.request can prompt the user.
+  // browser.permissions.request can prompt the user.
   try {
     const imageOrigin = `${new URL(srcUrl).origin}/*`;
-    const hasOrigin = await chrome.permissions.contains({ origins: [imageOrigin] });
+    const hasOrigin = await browser.permissions.contains({ origins: [imageOrigin] });
     if (!hasOrigin) {
-      const granted = await chrome.permissions.request({ origins: [imageOrigin] });
+      const granted = await browser.permissions.request({ origins: [imageOrigin] });
       if (!granted) {
         await sessionStorage().set({
           [PREFILL_KEY]: {
@@ -291,18 +292,18 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
 
 /**
  * Opens the extension popup, falling back to a new tab if the current
- * browser window doesn't support `chrome.action.openPopup()` (e.g.,
+ * browser window doesn't support `action.openPopup()` (e.g.,
  * Vivaldi side panels, dev-tools popouts, or browser windows without
- * a normal toolbar). The popup reads its prefill from chrome.storage.session
+ * a normal toolbar). The popup reads its prefill from browser.storage.session
  * the same way regardless of how it's opened.
  */
 async function openPopupSafe(): Promise<void> {
   try {
-    await chrome.action.openPopup();
+    await action.openPopup();
   } catch {
     // Tab fallback: pass ?popout=1 so the composer renders at desk-width
     // instead of the cramped 360px toolbar layout. Same flag the explicit
     // pop-out button uses — see entrypoints/popup/main.tsx.
-    await chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?popout=1") });
+    await browser.tabs.create({ url: browser.runtime.getURL("popup.html?popout=1") });
   }
 }

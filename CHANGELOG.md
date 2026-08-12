@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-08-12
+
+Bug-fix release for cross-browser account connection, from a report by
+[@srijan](https://github.com/srijan) against a Kirby Micropub server that
+delegates IndieAuth to indieauth.com. Every Firefox fix below affected _all_
+Firefox users, not only delegated setups.
+
+### Fixed
+
+- **Sites that delegate IndieAuth to another origin can now be connected.** `AddAccountDialog` requested host permissions for the blog's origin only, so servers whose `token_endpoint` lives elsewhere (e.g. `tokens.indieauth.com` while micropub stays on the blog) had their token exchange blocked by CORS, surfacing as an opaque "Failed to fetch" right after login. The dialog now discovers the endpoints first and requests every origin it will actually fetch. Same-origin servers are unaffected and still see a single prompt; delegated setups get a second, explicit "Grant access & continue" step, which is required because `permissions.request()` only works inside a user gesture.
+- **Firefox: adding an account no longer fails with "Permission denied".** `optional_host_permissions` is an MV3-only manifest key and was silently dropped from the MV2 Firefox build, leaving it with no optional origins at all — so `permissions.request({origins})` could never be granted for any site. MV2 builds now emit the equivalent `optional_permissions`.
+- **Firefox: the popup no longer hangs forever on "Loading…".** Plume called the bare `chrome.*` global, whose async methods are callback-only on Firefox and return `undefined`. `storage.local.get()` therefore threw, the popup's init effect rejected, and neither state setter ever ran. All runtime calls now go through `core/browser-api.ts`, which resolves to the promise-based `browser` namespace on Firefox and `chrome` on Chrome.
+- **Firefox: the toolbar badge no longer throws on every queue change.** MV3 renamed `browserAction` to `action`; WXT rewrites the manifest key for the MV2 Firefox build but not the API calls, so `action.setBadgeText` was undefined there and `updateBadge()` rejected on each queue mutation (and `openPopupSafe` always took its tab fallback). Calls now go through an accessor that resolves whichever name the build exposes. This also resolves the three `action.*` warnings AMO's validator raised in 1.0.4, recorded there as "not actionable; informational" — the validator was right. Those APIs do exist in Firefox 127+, but only under MV3 as `action`; the Firefox build is MV2, where the namespace is `browserAction`.
+- Popup init failures are now caught and displayed instead of leaving the popup on "Loading…" with nothing to report.
+- `identity.launchWebAuthFlow` now uses its promise form rather than a callback, which Firefox's promise-only namespace would have ignored.
+
 ## [1.3.0] — 2026-07-17
 
 ### Added

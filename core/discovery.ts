@@ -23,6 +23,33 @@ export function parseHtmlLinks(html: string): Record<string, string> {
   return links;
 }
 
+/**
+ * Origin match patterns (`https://host/*`) Plume must hold host permissions for
+ * to talk to a server, given its discovered endpoints.
+ *
+ * Only endpoints Plume actually `fetch`es are included: micropub, token, and
+ * media. `authorization_endpoint` is deliberately excluded — it is never
+ * fetched, only opened in the browser's auth window, which needs no permission.
+ *
+ * Sites that delegate IndieAuth (e.g. `token_endpoint` on tokens.indieauth.com
+ * while micropub stays on the blog) spread these across several origins, so
+ * granting only the site's own origin leaves the token exchange to be blocked
+ * by CORS — surfacing as an opaque "Failed to fetch".
+ */
+export function endpointOrigins(endpoints: Endpoints): string[] {
+  const urls = [endpoints.micropub, endpoints.token_endpoint, endpoints.media_endpoint];
+  const origins = new Set<string>();
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      origins.add(`${new URL(url).origin}/*`);
+    } catch {
+      // Relative or malformed href — nothing to request a permission for.
+    }
+  }
+  return [...origins];
+}
+
 export async function discoverEndpoints(siteUrl: string): Promise<Endpoints> {
   const response = await fetch(siteUrl, {
     headers: { Accept: "text/html" },

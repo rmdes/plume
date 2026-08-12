@@ -1,7 +1,10 @@
 import { useState } from "preact/hooks";
 import { CLIENT_ID, DEFAULT_SCOPE, getRedirectUri } from "../../core/auth-config";
+import { browser } from "../../core/browser-api";
 import { chromeIdentityLauncher } from "../../core/auth-launcher";
+import { discoverEndpoints, endpointOrigins } from "../../core/discovery";
 import { startAuth } from "../../core/indieauth";
+import type { Endpoints } from "../../core/types";
 import { accountStore } from "../../storage";
 
 interface Props {
@@ -9,31 +12,85 @@ interface Props {
   onAdded: () => void;
 }
 
+/**
+ * Origins still to be granted, held between the two permission prompts.
+ * Sites that delegate IndieAuth put their token endpoint on a different origin
+ * than the blog, and `permissions.request()` only works inside a user gesture —
+ * which the discovery fetch destroys. So the extra origins need their own
+ * click, which is what `pending` drives.
+ */
+interface PendingGrant {
+  siteUrl: string;
+  endpoints: Endpoints;
+  origins: string[];
+}
+
 export function AddAccountDialog({ onClose, onAdded }: Props) {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingGrant | null>(null);
+
+  async function authorize(siteUrl: string, endpoints: Endpoints) {
+    const token = await startAuth({
+      siteUrl,
+      clientId: CLIENT_ID,
+      redirectUri: getRedirectUri(),
+      scope: DEFAULT_SCOPE,
+      launcher: chromeIdentityLauncher,
+      endpoints,
+    });
+    await accountStore().add(token);
+    onAdded();
+    onClose();
+  }
 
   async function handleAdd(event: Event) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const origin = `${new URL(url).origin}/*`;
-      const granted = await chrome.permissions.request({ origins: [origin] });
-      if (!granted) {
-        throw new Error(`Permission denied for ${origin}`);
+      // First prompt, still inside the submit gesture: the site's own origin,
+      // which is all that's needed to read its <link rel> endpoints.
+      const siteOrigin = `${new URL(url).origin}/*`;
+      if (!(await browser.permissions.request({ origins: [siteOrigin] }))) {
+        throw new Error(`Permission denied for ${siteOrigin}`);
       }
-      const token = await startAuth({
-        siteUrl: url,
-        clientId: CLIENT_ID,
-        redirectUri: getRedirectUri(),
-        scope: DEFAULT_SCOPE,
-        launcher: chromeIdentityLauncher,
-      });
-      await accountStore().add(token);
-      onAdded();
-      onClose();
+
+      const endpoints = await discoverEndpoints(url);
+      const needed = endpointOrigins(endpoints);
+      const missing: string[] = [];
+      for (const origin of needed) {
+        if (!(await browser.permissions.contains({ origins: [origin] }))) {
+          missing.push(origin);
+        }
+      }
+
+      // Same-origin servers (the common case) never see a second prompt.
+      if (missing.length === 0) {
+        await authorize(url, endpoints);
+        return;
+      }
+      setPending({ siteUrl: url, endpoints, origins: missing });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGrant() {
+    if (!pending) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (!(await browser.permissions.request({ origins: pending.origins }))) {
+        throw new Error(
+          `Permission denied for ${pending.origins.join(", ")}. Plume cannot complete ` +
+            "sign-in without access to this server's token endpoint.",
+        );
+      }
+      await authorize(pending.siteUrl, pending.endpoints);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -70,17 +127,33 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
         }}
       >
         <h3>Add Micropub account</h3>
-        <label>
-          Your site URL
-          <input
-            type="url"
-            required
-            placeholder="https://yourblog.com"
-            value={url}
-            onInput={(e) => setUrl((e.currentTarget as HTMLInputElement).value)}
-            style={{ width: "100%", padding: 8 }}
-          />
-        </label>
+        {pending ? (
+          <>
+            <p style={{ margin: 0 }}>
+              <strong>{new URL(pending.siteUrl).hostname}</strong> signs you in through a different
+              server. Plume needs access to it to exchange your login for a token:
+            </p>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {pending.origins.map((origin) => (
+                <li key={origin} style={{ fontFamily: "monospace", fontSize: 13 }}>
+                  {origin}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <label>
+            Your site URL
+            <input
+              type="url"
+              required
+              placeholder="https://yourblog.com"
+              value={url}
+              onInput={(e) => setUrl((e.currentTarget as HTMLInputElement).value)}
+              style={{ width: "100%", padding: 8 }}
+            />
+          </label>
+        )}
         {error && <p style={{ color: "crimson" }}>{error}</p>}
         <div
           style={{
@@ -95,9 +168,17 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
           <button type="button" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="submit" disabled={busy || !url}>
-            {busy ? "Authorizing…" : "Authorize"}
-          </button>
+          {pending ? (
+            // Deliberately type="button" with its own handler: this click is
+            // the fresh user gesture that permissions.request() requires.
+            <button type="button" onClick={handleGrant} disabled={busy}>
+              {busy ? "Authorizing…" : "Grant access & continue"}
+            </button>
+          ) : (
+            <button type="submit" disabled={busy || !url}>
+              {busy ? "Authorizing…" : "Authorize"}
+            </button>
+          )}
         </div>
       </form>
     </div>

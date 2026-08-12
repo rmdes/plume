@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { CLIENT_ID } from "../../core/auth-config";
+import { browser } from "../../core/browser-api";
 import { refreshToken } from "../../core/indieauth";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
@@ -28,9 +29,10 @@ function Popup() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [enabledExtensions, setEnabledExtensions] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   function openInTab() {
-    void chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?popout=1") });
+    void browser.tabs.create({ url: browser.runtime.getURL("popup.html?popout=1") });
     window.close();
   }
 
@@ -59,11 +61,19 @@ function Popup() {
       } else {
         setPrefill(pre);
       }
-    })();
+    })().catch((e: unknown) => {
+      // Without this, any rejection here left `account`/`prefill` unset and the
+      // popup sat on "Loading…" forever with nothing for the user to report.
+      // Surface the message instead and let the render fall through.
+      console.error("[plume] popup init failed", e);
+      setLoadError(e instanceof Error ? e.message : String(e));
+      setAccount((prev) => (prev === undefined ? null : prev));
+      setPrefill((prev) => prev ?? {});
+    });
   }, []);
 
   function openOptions() {
-    chrome.runtime.openOptionsPage();
+    browser.runtime.openOptionsPage();
   }
 
   async function switchAccount(domain: string) {
@@ -83,7 +93,16 @@ function Popup() {
   if (account === null) {
     return (
       <main style={{ padding: 16, minWidth: 320 }}>
-        <p>No Micropub account connected.</p>
+        {loadError ? (
+          <>
+            <p style={{ color: "#900" }}>Plume couldn't start up.</p>
+            <p style={{ fontSize: 12, fontFamily: "monospace", wordBreak: "break-word" }}>
+              {loadError}
+            </p>
+          </>
+        ) : (
+          <p>No Micropub account connected.</p>
+        )}
         <button onClick={openOptions} type="button">
           Open Plume settings
         </button>

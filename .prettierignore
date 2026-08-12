@@ -1,5 +1,6 @@
 .wxt
 .output
+.remember
 node_modules
 playwright-report
 test-results

@@ -15,10 +15,17 @@ export interface StartAuthArgs {
   redirectUri: string;
   scope: string;
   launcher: AuthLauncher;
+  /**
+   * Endpoints already discovered by the caller. Callers that must inspect the
+   * endpoints before authorizing — e.g. to request host permissions for a
+   * delegated token endpoint — pass them here to avoid a second fetch of the
+   * site. Omit to discover from `siteUrl`.
+   */
+  endpoints?: Endpoints;
 }
 
 export async function startAuth(args: StartAuthArgs): Promise<TokenData> {
-  const endpoints = await discoverEndpoints(args.siteUrl);
+  const endpoints = args.endpoints ?? (await discoverEndpoints(args.siteUrl));
   if (!endpoints.authorization_endpoint || !endpoints.token_endpoint) {
     throw new Error(
       `Could not find authorization or token endpoint at ${args.siteUrl}. ` +

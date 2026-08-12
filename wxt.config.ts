@@ -17,12 +17,20 @@ export default defineConfig({
   vite: () => ({
     plugins: [preact()],
   }),
-  manifest: ({ mode }) => ({
+  manifest: ({ mode, manifestVersion }) => ({
     ...(mode === "development" ? { key: CWS_PUBLIC_KEY } : {}),
     name: "Plume — Micropub Client",
     description: "Post to your Micropub-compatible blog from anywhere in the browser.",
     permissions: ["storage", "contextMenus", "identity", "notifications", "alarms"],
-    optional_host_permissions: ["<all_urls>"],
+    // Optional origins are declared under different keys per manifest version:
+    // MV3 has a dedicated `optional_host_permissions`, MV2 folds origins into
+    // `optional_permissions`. WXT silently DROPS the MV3-only key when it
+    // downlevels to MV2, which left the Firefox build with no optional origins
+    // at all — `permissions.request({origins})` could never be granted, so
+    // adding any account failed with "Permission denied". Keep both.
+    ...(manifestVersion === 3
+      ? { optional_host_permissions: ["<all_urls>"] }
+      : { optional_permissions: ["<all_urls>"] }),
     action: {
       default_title: "Plume",
       default_popup: "popup.html",

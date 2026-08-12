@@ -1,3 +1,4 @@
+import { browser } from "../core/browser-api";
 import { AccountStore } from "./accounts";
 import { ChromeBrowserStorage } from "./browser-storage";
 import { DefaultsStore } from "./defaults";
@@ -13,12 +14,12 @@ let _local: ChromeBrowserStorage | null = null;
 let _session: ChromeBrowserStorage | null = null;
 
 export function localStorage(): ChromeBrowserStorage {
-  if (!_local) _local = new ChromeBrowserStorage(chrome.storage.local);
+  if (!_local) _local = new ChromeBrowserStorage(browser.storage.local);
   return _local;
 }
 
 export function sessionStorage(): ChromeBrowserStorage {
-  if (!_session) _session = new ChromeBrowserStorage(chrome.storage.session);
+  if (!_session) _session = new ChromeBrowserStorage(browser.storage.session);
   return _session;
 }
 
