@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeBrowserStorage } from "./browser-storage";
-import { type Draft, DraftStore } from "./drafts";
+import { type Draft, draftScope, DraftStore } from "./drafts";
 
 describe("DraftStore", () => {
   let store: DraftStore;
@@ -67,5 +67,57 @@ describe("DraftStore", () => {
     const keys = all.map((entry) => entry.key);
     expect(keys).toContain("rmendes.net::general");
     expect(keys).toContain("rmendes.net::https://x.com/");
+  });
+
+  it("list splits each key back into its domain and scope", async () => {
+    await store.save("rmendes.net", "https://x.com/a", { content: "b" });
+    const [entry] = await store.list();
+    expect(entry?.domain).toBe("rmendes.net");
+    // Split on the FIRST separator only: a scope is a URL and may itself
+    // contain "::" (an IPv6 host, a query string), which a naive
+    // split("::", 2) would silently truncate — losing the draft.
+    expect(entry?.scope).toBe("https://x.com/a");
+  });
+
+  it("round-trips a scope containing the separator", async () => {
+    await store.save("rmendes.net", "http://[::1]/post", { content: "b" });
+    const [entry] = await store.list();
+    expect(entry?.scope).toBe("http://[::1]/post");
+    await store.remove(entry?.domain ?? "", entry?.scope ?? "");
+    expect(await store.list()).toHaveLength(0);
+  });
+
+  it("removes a draft saved under an empty scope", async () => {
+    // Drafts written before the scope fix landed are keyed "domain::" — the
+    // options list must still be able to delete them.
+    await store.save("rmendes.net", "", { content: "orphan" });
+    const [entry] = await store.list();
+    expect(entry?.key).toBe("rmendes.net::");
+    expect(entry?.domain).toBe("rmendes.net");
+    expect(entry?.scope).toBe("");
+    await store.remove(entry?.domain ?? "", entry?.scope ?? "");
+    expect(await store.list()).toHaveLength(0);
+  });
+});
+
+describe("draftScope", () => {
+  it("falls back to 'general' when no target URL is set", () => {
+    expect(draftScope({})).toBe("general");
+  });
+
+  it("treats an empty target URL as absent", () => {
+    // Composer patches `bookmarkOf: ""` whenever the post type is a target
+    // type and the URL field is blank. `??` let that "" through as the scope,
+    // filing the draft under "domain::" where neither the popup's restore nor
+    // the options list's delete button could find it.
+    expect(draftScope({ bookmarkOf: "" })).toBe("general");
+    expect(draftScope({ bookmarkOf: "", inReplyTo: "", likeOf: "", repostOf: "" })).toBe("general");
+  });
+
+  it("uses whichever target URL is set", () => {
+    expect(draftScope({ bookmarkOf: "https://x.com/a" })).toBe("https://x.com/a");
+    expect(draftScope({ bookmarkOf: "", inReplyTo: "https://x.com/b" })).toBe("https://x.com/b");
+    expect(draftScope({ likeOf: "https://x.com/c" })).toBe("https://x.com/c");
+    expect(draftScope({ repostOf: "https://x.com/d" })).toBe("https://x.com/d");
   });
 });

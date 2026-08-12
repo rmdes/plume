@@ -5,7 +5,7 @@ import { browser } from "../../core/browser-api";
 import { refreshToken } from "../../core/indieauth";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
-import { accountStore, draftStore, sessionStorage } from "../../storage";
+import { accountStore, draftScope, draftStore, sessionStorage } from "../../storage";
 import { Composer } from "./Composer";
 
 const PREFILL_KEY = "pendingPrefill";
@@ -54,7 +54,7 @@ function Popup() {
       await sessionStorage().remove(PREFILL_KEY);
 
       const domain = new URL(a.me).hostname;
-      const scope = pre.bookmarkOf ?? pre.inReplyTo ?? pre.likeOf ?? pre.repostOf ?? "general";
+      const scope = draftScope(pre);
       const draft = await draftStore().load(domain, scope);
       if (draft && !pre.content) {
         setPrefill({ ...pre, ...draft });
@@ -234,13 +234,7 @@ function Popup() {
         isPopout={isPopout}
         onPosted={async (loc) => {
           const domain = new URL(account.me).hostname;
-          const scope =
-            prefill.bookmarkOf ??
-            prefill.inReplyTo ??
-            prefill.likeOf ??
-            prefill.repostOf ??
-            "general";
-          await draftStore().remove(domain, scope);
+          await draftStore().remove(domain, draftScope(prefill));
           setToast(`Posted ✓ ${loc}`);
           setTimeout(() => window.close(), 800);
         }}

@@ -7,6 +7,7 @@ import { QueueStore } from "./queue";
 
 export type { AiMetadataDefaults, UserDefaults } from "./defaults";
 export type { Draft, ListedDraft } from "./drafts";
+export { draftScope } from "./drafts";
 export type { EnqueueArgs, QueueItem, QueueStatus, RecordAttemptArgs } from "./queue";
 export { AccountStore, DefaultsStore, DraftStore, QueueStore };
 

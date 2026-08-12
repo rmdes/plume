@@ -6,8 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Edit button on each draft** in the options page. Opens the draft in the pop-out composer, switching the active account to the blog the draft belongs to first so it can't be published to whichever account happened to be active. Previously a saved draft could only be viewed and deleted from this list, never reopened.
+- Each draft row now shows the blog it belongs to, and its target URL for replies/bookmarks.
+
 ### Fixed
 
+- **Drafts saved from a reply/bookmark/like/repost/quote composer were unreachable.** The scope half of a draft's storage key was built with `??`, but the composer patches the target field to `""` as soon as one of those types is selected with a blank URL — and `""` is not nullish. Those drafts were filed under `"domain::"`, where the popup's restore looked under `"domain::general"` and never found them, post-success cleanup never deleted them (so they accumulated after posting), and the options list's delete button silently did nothing because it bailed on its own falsy-scope guard. All three paths now share one `draftScope()` helper. Existing orphaned drafts are deletable again.
+- `DraftStore.list()` now returns each draft's parsed `domain` and `scope`, splitting on the first separator only. Callers were re-splitting the key with `split("::", 2)`, which truncates any scope containing `::` (an IPv6 host, a query string) into a value that no longer addresses the draft it came from.
 - Dropped Vite's `<link rel="modulepreload">` hints from `popup.html` and `options.html` (`build.modulePreload: false`). On a `chrome-extension://` page the emitted `crossorigin` attribute made Chrome fetch the hint under different credentials than the module import that followed, so the cached entry never matched and was discarded — logging "cross-world extension resource mismatch" and then "preloaded but not used within a few seconds". Cosmetic only: the chunk is a static import at the top of both entries and always loaded regardless. Code splitting is unchanged, including the lazy markdown chunks.
 
 ## [1.3.1] — 2026-08-12
