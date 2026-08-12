@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-08-12
+
+Drafts release. A single `??`-vs-`||` mistake in the draft key had made every
+draft saved from a reply/bookmark/like/repost/quote composer unreachable —
+never restored, never cleaned up after posting, and impossible to delete.
+Reported from the options page, where the delete button appeared inert.
+
 ### Added
 
 - **Edit button on each draft** in the options page. Opens the draft in the pop-out composer, switching the active account to the blog the draft belongs to first so it can't be published to whichever account happened to be active. Previously a saved draft could only be viewed and deleted from this list, never reopened.
