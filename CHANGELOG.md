@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Dropped Vite's `<link rel="modulepreload">` hints from `popup.html` and `options.html` (`build.modulePreload: false`). On a `chrome-extension://` page the emitted `crossorigin` attribute made Chrome fetch the hint under different credentials than the module import that followed, so the cached entry never matched and was discarded — logging "cross-world extension resource mismatch" and then "preloaded but not used within a few seconds". Cosmetic only: the chunk is a static import at the top of both entries and always loaded regardless. Code splitting is unchanged, including the lazy markdown chunks.
+
 ## [1.3.1] — 2026-08-12
 
 Bug-fix release for cross-browser account connection, from a report by
