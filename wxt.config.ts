@@ -16,6 +16,19 @@ const CWS_PUBLIC_KEY =
 export default defineConfig({
   vite: () => ({
     plugins: [preact()],
+    build: {
+      // Vite emits `<link rel="modulepreload" crossorigin>` for the shared
+      // chunk into popup.html/options.html. On a chrome-extension:// page the
+      // `crossorigin` attribute makes Chrome fetch the hint under different
+      // credentials than the module import that follows, so the cached entry
+      // never matches and is discarded — logging "cross-world extension
+      // resource mismatch" and then "preloaded but not used".
+      //
+      // The chunk is a *static* import at the top of both entries, so it loads
+      // either way; the hint only ever bought parallel fetches over a network,
+      // which is worth nothing for a bundle read off local disk.
+      modulePreload: false,
+    },
   }),
   manifest: ({ mode, manifestVersion }) => ({
     ...(mode === "development" ? { key: CWS_PUBLIC_KEY } : {}),
