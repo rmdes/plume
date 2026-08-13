@@ -119,12 +119,54 @@ also passes `?popout=1` so sidebar users get the better layout for free.
 ### Permissions
 
 - **At install:** `storage`, `contextMenus`, `identity`, `notifications`, `alarms`. No host permissions.
-- **Per-account:** `<all_urls>` is in `optional_host_permissions`. `AddAccountDialog` requests `chrome.permissions.request({origins: [account_origin + "/*"]})` before kicking off IndieAuth, so the user grants access scoped to each blog they connect.
+- **Per-account:** `<all_urls>` is declared optional — under `optional_host_permissions` on MV3 and `optional_permissions` on MV2 (see below). The user grants access scoped to each blog they connect, never up front.
+- **Two-step grant.** `AddAccountDialog` requests the site's own origin, then discovers endpoints, then requests any _additional_ origins it will actually fetch (`endpointOrigins()` — micropub, token, media; not `authorization_endpoint`, which is only opened in the auth window). Servers that delegate IndieAuth put their token endpoint on another origin, and without a permission for it the token exchange falls under normal CORS and dies as an opaque "Failed to fetch".
+- The second request needs its **own click** (the "Grant access & continue" button): `permissions.request()` only works inside a live user gesture, which the intervening discovery `await` destroys. Same-origin servers skip the second step entirely.
 
 ### Firefox `data_collection_permissions`
 
 Required by Mozilla AMO since early 2026. Plume declares `{required: ["none"]}`
 under `browser_specific_settings.gecko`. Chrome ignores the field.
+
+### The Firefox build is MV2 — assume APIs diverge
+
+WXT defaults Firefox and Safari to MV2 and everything else to MV3
+(`wxt/dist/core/resolve-config.mjs`); `wxt.config.ts` never sets
+`manifestVersion`, so this was inherited, not chosen. **Neither typecheck, CI,
+nor the E2E suite can catch an MV2 divergence** — `@types/chrome` describes
+MV3, and the E2E suite is Chromium-only. Four such bugs shipped together and
+were only found from a user report (fixed in v1.3.1):
+
+| MV3                         | MV2 / Firefox                                        | Symptom when confused                                                                                                                                          |
+| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `optional_host_permissions` | `optional_permissions`                               | WXT **silently drops** the MV3 key downleveling → no optional origins at all → `permissions.request({origins})` always denied → no account could ever be added |
+| `chrome.*` returns promises | `chrome.*` is **callback-only**, returns `undefined` | `storage.local.get()` threw → popup init rejected → stuck on "Loading…" forever                                                                                |
+| `action`                    | `browserAction`                                      | `action.setBadgeText` undefined → `updateBadge()` rejected on every queue change                                                                               |
+| callback or promise         | **promise-only**, ignores a trailing callback        | `launchWebAuthFlow(details, cb)` never resolves → auth hangs forever                                                                                           |
+
+Consequences for how to write code here:
+
+- **Never touch the bare `chrome` global at runtime.** Import `browser` (and
+  `action`) from `core/browser-api.ts`, which resolves the promise-based
+  namespace on Firefox and `chrome` on Chrome. Type-only references like
+  `chrome.storage.StorageChange` are fine — they erase at compile time.
+- **Prefer the promise form** of any API. `contextMenus.create` is the one
+  documented exception: it returns the item ID synchronously and reports
+  errors via a callback plus `runtime.lastError`, on both engines.
+- **Branch the manifest on `manifestVersion`**, which the `manifest()` factory
+  receives, rather than assuming MV3 keys survive.
+- Verify by inspecting **both** `.output/chrome-mv3/manifest.json` and
+  `.output/firefox-mv2/manifest.json` — a key silently vanishing is the whole
+  failure mode.
+- AMO's validator flagged the `action.*` calls back in 1.0.4 and the warning
+  was dismissed as "not actionable; informational". It was right. Treat its
+  Firefox-support warnings as real until disproved.
+
+**Nothing here can be tested on the dev machine**: there is no Firefox and no
+`web-ext`, and Playwright cannot sideload extensions into its Firefox. Any
+Firefox-path change is unverified until a human loads `.output/firefox-mv2`
+via `about:debugging`. Migrating the Firefox target to MV3 would remove this
+class at the root but needs real-browser testing; deliberately deferred.
 
 ## Conventions
 
@@ -187,6 +229,8 @@ For each new release:
 ## Known gotchas
 
 - **`bun test` ≠ `bun run test`.** Bun's built-in runner doesn't understand vitest mocks.
+- **The Firefox build is MV2 and its APIs diverge**, invisibly to typecheck, CI, and the Chromium-only E2E suite. Never use the bare `chrome` global at runtime — import from `core/browser-api.ts`. See "The Firefox build is MV2" above.
+- **E2E needs a Chromium that Playwright can't install here** (Ubuntu 26.04 is unsupported by the pinned version, and system Chrome ignores `--load-extension`). Run with `CHROME_PATH=~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome bun run test:e2e`; `launchWithExtension` reads that override.
 - **MV3 service workers don't run in Playwright headless mode.** `launchWithExtension` sets `headless: false`.
 - **`/tmp/plume-ext-*` cleanup.** `tests/e2e/helpers.ts` registers a `process.on('exit')` rm handler — without it, E2E runs would leak ~88 KB per launch.
 - **`refreshMenus` race.** `background.ts` uses a mutex (`menuRefreshRunning` / `menuRefreshPending`) so concurrent `onInstalled` + `storage.onChanged` events don't create duplicate context-menu IDs.
