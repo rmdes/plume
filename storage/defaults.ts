@@ -14,6 +14,7 @@ export interface UserDefaults {
   aiMetadata?: AiMetadataDefaults;
   syndicateTo: string[];
   notifyOnBackgroundSuccess?: boolean;
+  debugLogging?: boolean;
 }
 
 const EMPTY: UserDefaults = {
@@ -48,5 +49,9 @@ export class DefaultsStore {
 
   async setNotifyOnBackgroundSuccess(value: boolean): Promise<void> {
     await this.patch({ notifyOnBackgroundSuccess: value });
+  }
+
+  async setDebugLogging(value: boolean): Promise<void> {
+    await this.patch({ debugLogging: value });
   }
 }
