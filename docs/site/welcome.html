@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plume — Getting started</title>
+    <meta
+      name="description"
+      content="Plume is installed. Here's what it does and how to connect your site."
+    />
+    <style>
+      :root {
+        --ink: #1e3a8a;
+        --ink-deep: #1e293b;
+        --paper: #f8fafc;
+        --paper-edge: #e2e8f0;
+        --muted: #64748b;
+        --accent-bg: #dbeafe;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: var(--ink-deep);
+        background: var(--paper);
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+      header.hero {
+        padding: 3.5rem 0 2.5rem;
+        background: linear-gradient(135deg, var(--paper) 0%, var(--accent-bg) 100%);
+        border-bottom: 1px solid var(--paper-edge);
+      }
+      .hero-logo {
+        font-size: 3rem;
+        line-height: 1;
+      }
+      h1 {
+        margin: 0.5rem 0;
+        font-size: clamp(1.8rem, 5vw, 2.5rem);
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .lede {
+        margin: 0;
+        font-size: 1.1rem;
+        max-width: 55ch;
+      }
+      main {
+        padding: 2.5rem 0 4rem;
+      }
+      h2 {
+        margin: 2.5rem 0 0.75rem;
+        font-size: 1.3rem;
+        color: var(--ink);
+      }
+      h2:first-of-type {
+        margin-top: 0;
+      }
+      ol.steps {
+        padding-left: 1.2rem;
+      }
+      ol.steps > li {
+        margin-bottom: 1.25rem;
+      }
+      kbd {
+        background: #fff;
+        border: 1px solid var(--paper-edge);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        padding: 0.1em 0.4em;
+        font-size: 0.9em;
+      }
+      .note {
+        background: #fff;
+        border: 1px solid var(--paper-edge);
+        border-left: 3px solid var(--ink);
+        border-radius: 4px;
+        padding: 0.9rem 1.1rem;
+        margin: 1.25rem 0;
+      }
+      .note p {
+        margin: 0;
+      }
+      img.shot {
+        max-width: 100%;
+        border: 1px solid var(--paper-edge);
+        border-radius: 6px;
+        margin-top: 0.75rem;
+      }
+      footer {
+        border-top: 1px solid var(--paper-edge);
+        padding: 1.5rem 0 3rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      a {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <div class="hero-logo">🪶</div>
+        <h1>Plume is installed</h1>
+        <p class="lede">
+          Plume posts to your own website from anywhere in the browser. Nothing is sent anywhere
+          except the site you connect it to.
+        </p>
+      </div>
+    </header>
+
+    <main class="container">
+      <h2>What you need first</h2>
+      <p>
+        Plume publishes to <strong>your</strong> website, so your site has to be able to accept
+        posts. Two open standards make that work, and you don't have to understand either one to use
+        Plume:
+      </p>
+      <ul>
+        <li>
+          <strong>Micropub</strong> is how Plume hands a post to your site — the equivalent of an
+          app's "publish" button, but for a site you own.
+        </li>
+        <li>
+          <strong>IndieAuth</strong> is how you sign in. You log in with your <em>domain name</em>
+          instead of an email and password, and Plume never sees a password — your site hands it a
+          token it can revoke at any time.
+        </li>
+      </ul>
+      <p>
+        Publishing platforms that support this include
+        <a href="https://micro.blog">Micro.blog</a>, <a href="https://getindiekit.com">Indiekit</a>,
+        and WordPress, Kirby and others via a plugin. The IndieWeb wiki keeps
+        <a href="https://indieweb.org/Micropub#Servers">a fuller list of servers</a>.
+      </p>
+      <div class="note">
+        <p>
+          If your site doesn't support Micropub yet, Plume can't post to it. That's the one
+          prerequisite — everything else below takes a couple of minutes.
+        </p>
+      </div>
+
+      <h2>Getting set up</h2>
+      <ol class="steps">
+        <li>
+          <strong>Pin Plume to your toolbar.</strong> Click the extensions icon in your browser's
+          toolbar and pin the feather. You can also open the composer any time with <kbd>Alt</kbd> +
+          <kbd>Shift</kbd> + <kbd>P</kbd>.
+        </li>
+        <li>
+          <strong>Connect your site.</strong> Open Plume's settings and choose <em>Add account</em>,
+          then enter your domain. Plume will show you each step as it goes: asking permission for
+          your site, finding its endpoints, and sending you to your own server to approve the
+          connection.
+          <img
+            class="shot"
+            src="screenshots/3-options-accounts.png"
+            alt="Plume's settings page, showing a connected account"
+            loading="lazy"
+          />
+        </li>
+        <li>
+          <strong>Approve the connection on your own site.</strong> A tab opens on
+          <em>your</em> server asking whether to let Plume post. That page belongs to you, not to
+          Plume. Approve it and you'll land back here, connected.
+        </li>
+      </ol>
+
+      <h2>What you can do</h2>
+      <ul>
+        <li>Write notes, articles, replies, bookmarks, likes, reposts and photo posts.</li>
+        <li>
+          Right-click any page, link, selection or image to start a post about it — the URL and
+          title are filled in for you.
+        </li>
+        <li>
+          Drafts save as you type, per site and per thing you're replying to, and are kept for seven
+          days.
+        </li>
+        <li>
+          If a post fails because you're offline or your server is down, it's queued and retried in
+          the background rather than lost.
+        </li>
+        <li>Connect more than one site and switch between them from the composer's header.</li>
+      </ul>
+
+      <h2>If something goes wrong</h2>
+      <p>
+        Plume keeps a local debug log. Open its settings, scroll to
+        <strong>Debug log</strong>, and press <em>Copy</em> — that text is what makes a bug report
+        actionable. Access tokens and authorization codes are stripped out before anything is
+        written to it, so it's safe to paste in public.
+      </p>
+      <p>
+        Report anything odd at
+        <a href="https://github.com/rmdes/plume/issues">github.com/rmdes/plume/issues</a>.
+      </p>
+    </main>
+
+    <footer>
+      <div class="container">
+        <a href="./">Plume home</a> · <a href="privacy.html">Privacy</a> ·
+        <a href="https://github.com/rmdes/plume">Source</a>
+      </div>
+    </footer>
+  </body>
+</html>

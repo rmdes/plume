@@ -17,6 +17,11 @@ import {
 
 const PREFILL_KEY = "pendingPrefill";
 
+// Derived from CLIENT_ID so the two can never drift: both point at the same
+// GitHub Pages site, which is also what IndieAuth servers fetch for client
+// metadata.
+const WELCOME_URL = new URL("welcome.html", CLIENT_ID).href;
+
 export default defineBackground(() => {
   setLogContext("background");
 
@@ -80,11 +85,20 @@ export default defineBackground(() => {
   const QUEUE_ALARM = "plume-queue-tick";
   const TOKEN_ALARM = "plume-token-refresh";
 
-  browser.runtime.onInstalled.addListener(() => {
+  browser.runtime.onInstalled.addListener((details) => {
     refreshMenus();
     browser.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 });
     browser.alarms.create(TOKEN_ALARM, { periodInMinutes: 1440 });
     updateBadge();
+
+    // Only on a genuine first install. This listener also fires for every
+    // update and browser upgrade, and reopening this on each one would be
+    // nagging rather than onboarding.
+    if (details.reason === "install") {
+      browser.tabs
+        .create({ url: WELCOME_URL })
+        .catch((e) => log.warn("opening welcome page failed", e));
+    }
   });
 
   browser.runtime.onStartup.addListener(() => {
