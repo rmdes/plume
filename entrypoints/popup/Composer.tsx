@@ -7,7 +7,7 @@ import { MediaPicker } from "../../components/MediaPicker";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
-import { fetchAndCacheServerConfig } from "../../core/server-config";
+import { fetchAndCacheServerConfig, serverPostTypeLabels } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import { accountStore, defaultsStore, draftScope, queueStore } from "../../storage";
 import { useComposerState } from "./useComposerState";
@@ -171,7 +171,11 @@ export function Composer({
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12, padding: 12 }}>
-      <TypePicker value={state.type} onChange={setType} />
+      <TypePicker
+        value={state.type}
+        onChange={setType}
+        serverLabels={serverPostTypeLabels(serverConfig)}
+      />
 
       {state.type === "photo" && state.photo?.[0] && (
         <figure style={{ margin: 0 }}>

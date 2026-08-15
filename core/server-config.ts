@@ -64,6 +64,27 @@ export async function fetchAndCacheServerConfig(
   return merged;
 }
 
+/**
+ * Maps post type → the name the server calls it, for the types it advertises
+ * via `?q=post-types`.
+ *
+ * A type missing from the result is NOT necessarily unsupported: Micropub
+ * derives the post type from the properties sent, and Indiekit only advertises
+ * types it has fields configured for ("Only return fully configured post
+ * types"). So callers should treat absence as "the server didn't mention it",
+ * not "posting this will fail" — see TypePicker, which dims rather than
+ * disables.
+ */
+export function serverPostTypeLabels(config?: ServerConfig): Record<string, string> {
+  const labels: Record<string, string> = {};
+  for (const postType of config?.["post-types"] ?? []) {
+    if (postType?.type && postType.name) {
+      labels[postType.type] = postType.name;
+    }
+  }
+  return labels;
+}
+
 async function safeQuery(
   client: MicropubClient,
   q: "config" | "post-types" | "category",

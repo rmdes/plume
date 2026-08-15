@@ -50,10 +50,17 @@ export function endpointOrigins(endpoints: Endpoints): string[] {
   return [...origins];
 }
 
+/**
+ * A site that never answers would otherwise hang the add-account flow with no
+ * way out, since discovery sits between the two permission prompts.
+ */
+const DISCOVERY_TIMEOUT_MS = 10_000;
+
 export async function discoverEndpoints(siteUrl: string): Promise<Endpoints> {
   const response = await fetch(siteUrl, {
     headers: { Accept: "text/html" },
     redirect: "follow",
+    signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
   });
   const html = await response.text();
   const htmlLinks = parseHtmlLinks(html);
@@ -62,7 +69,9 @@ export async function discoverEndpoints(siteUrl: string): Promise<Endpoints> {
 
   if (allLinks["indieauth-metadata"]) {
     try {
-      const metaResponse = await fetch(allLinks["indieauth-metadata"]);
+      const metaResponse = await fetch(allLinks["indieauth-metadata"], {
+        signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+      });
       const metadata = (await metaResponse.json()) as Record<string, string>;
       if (metadata.authorization_endpoint) {
         allLinks.authorization_endpoint = metadata.authorization_endpoint;

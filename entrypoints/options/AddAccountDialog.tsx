@@ -1,9 +1,10 @@
 import { useState } from "preact/hooks";
 import { CLIENT_ID, DEFAULT_SCOPE, getRedirectUri } from "../../core/auth-config";
-import { browser } from "../../core/browser-api";
 import { chromeIdentityLauncher } from "../../core/auth-launcher";
+import { browser } from "../../core/browser-api";
 import { discoverEndpoints, endpointOrigins } from "../../core/discovery";
 import { startAuth } from "../../core/indieauth";
+import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { Endpoints } from "../../core/types";
 import { accountStore } from "../../storage";
 
@@ -25,42 +26,134 @@ interface PendingGrant {
   origins: string[];
 }
 
+type StepState = "waiting" | "active" | "done" | "failed";
+
+interface Step {
+  id: string;
+  label: string;
+  state: StepState;
+  detail?: string;
+}
+
+/**
+ * The steps known before discovery runs. A second permission grant is only
+ * required by servers that delegate IndieAuth elsewhere, so that step is
+ * spliced in once discovery tells us it is needed.
+ */
+const initialSteps = (host: string): Step[] => [
+  { id: "permission", label: `Requesting access to ${host}`, state: "waiting" },
+  { id: "discovery", label: "Discovering endpoints", state: "waiting" },
+  { id: "token", label: "Exchanging your login for a token", state: "waiting" },
+  { id: "config", label: "Loading server configuration", state: "waiting" },
+];
+
+const ICON: Record<StepState, string> = {
+  waiting: "·",
+  active: "◐",
+  done: "✓",
+  failed: "✗",
+};
+
+const COLOR: Record<StepState, string> = {
+  waiting: "#999",
+  active: "#3b82f6",
+  done: "#15803d",
+  failed: "crimson",
+};
+
 export function AddAccountDialog({ onClose, onAdded }: Props) {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingGrant | null>(null);
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [finished, setFinished] = useState(false);
+
+  function patchStep(id: string, patch: Partial<Step>) {
+    setSteps((current) =>
+      current ? current.map((step) => (step.id === id ? { ...step, ...patch } : step)) : current,
+    );
+  }
+
+  /**
+   * Run one step, reflecting its outcome in the list. A failure is always
+   * shown; whether it stops the flow is the caller's decision, so that a
+   * server with a broken `?q=config` still gets you signed in.
+   */
+  async function runStep<T>(id: string, work: () => Promise<T>): Promise<T> {
+    patchStep(id, { state: "active", detail: undefined });
+    try {
+      const result = await work();
+      patchStep(id, { state: "done" });
+      return result;
+    } catch (e) {
+      patchStep(id, {
+        state: "failed",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
+  }
 
   async function authorize(siteUrl: string, endpoints: Endpoints) {
-    const token = await startAuth({
-      siteUrl,
-      clientId: CLIENT_ID,
-      redirectUri: getRedirectUri(),
-      scope: DEFAULT_SCOPE,
-      launcher: chromeIdentityLauncher,
-      endpoints,
-    });
+    const token = await runStep("token", () =>
+      startAuth({
+        siteUrl,
+        clientId: CLIENT_ID,
+        redirectUri: getRedirectUri(),
+        scope: DEFAULT_SCOPE,
+        launcher: chromeIdentityLauncher,
+        endpoints,
+      }),
+    );
     await accountStore().add(token);
     onAdded();
-    onClose();
+
+    // Non-fatal: the account is already usable, and the popup refetches config
+    // on every open. Surfacing the failure beats blocking sign-in on it.
+    let configOk = true;
+    try {
+      await runStep("config", () =>
+        fetchAndCacheServerConfig(accountStore(), new URL(token.me).hostname),
+      );
+    } catch {
+      configOk = false;
+    }
+
+    setFinished(true);
+    if (configOk) {
+      setTimeout(onClose, 700);
+    }
   }
 
   async function handleAdd(event: Event) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+
+    let siteOrigin: string;
+    try {
+      siteOrigin = `${new URL(url).origin}/*`;
+    } catch {
+      setError("Enter a valid site URL.");
+      setBusy(false);
+      return;
+    }
+    setSteps(initialSteps(new URL(url).hostname));
+
     try {
       // First prompt, still inside the submit gesture: the site's own origin,
       // which is all that's needed to read its <link rel> endpoints.
-      const siteOrigin = `${new URL(url).origin}/*`;
-      if (!(await browser.permissions.request({ origins: [siteOrigin] }))) {
-        throw new Error(`Permission denied for ${siteOrigin}`);
-      }
+      await runStep("permission", async () => {
+        if (!(await browser.permissions.request({ origins: [siteOrigin] }))) {
+          throw new Error(`Permission denied for ${siteOrigin}`);
+        }
+      });
 
-      const endpoints = await discoverEndpoints(url);
-      const needed = endpointOrigins(endpoints);
+      const endpoints = await runStep("discovery", () => discoverEndpoints(url));
+
       const missing: string[] = [];
-      for (const origin of needed) {
+      for (const origin of endpointOrigins(endpoints)) {
         if (!(await browser.permissions.contains({ origins: [origin] }))) {
           missing.push(origin);
         }
@@ -71,6 +164,18 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
         await authorize(url, endpoints);
         return;
       }
+
+      setSteps((current) => {
+        if (!current) return current;
+        const grant: Step = {
+          id: "grant",
+          label: `Granting access to ${missing.join(", ")}`,
+          state: "waiting",
+          detail: "Needs your confirmation",
+        };
+        const at = current.findIndex((step) => step.id === "token");
+        return [...current.slice(0, at), grant, ...current.slice(at)];
+      });
       setPending({ siteUrl: url, endpoints, origins: missing });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -84,12 +189,14 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
     setBusy(true);
     setError(null);
     try {
-      if (!(await browser.permissions.request({ origins: pending.origins }))) {
-        throw new Error(
-          `Permission denied for ${pending.origins.join(", ")}. Plume cannot complete ` +
-            "sign-in without access to this server's token endpoint.",
-        );
-      }
+      await runStep("grant", async () => {
+        if (!(await browser.permissions.request({ origins: pending.origins }))) {
+          throw new Error(
+            `Permission denied. Plume cannot complete sign-in without access to ` +
+              `this server's token endpoint.`,
+          );
+        }
+      });
       await authorize(pending.siteUrl, pending.endpoints);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -97,6 +204,8 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
       setBusy(false);
     }
   }
+
+  const awaitingGrant = pending && !finished;
 
   return (
     <div
@@ -110,6 +219,7 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
         placeItems: "center",
       }}
     >
+      <style>{"@keyframes plume-spin{to{transform:rotate(360deg)}}"}</style>
       <form
         onSubmit={handleAdd}
         style={{
@@ -126,21 +236,46 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
           gap: 12,
         }}
       >
-        <h3>Add Micropub account</h3>
-        {pending ? (
-          <>
-            <p style={{ margin: 0 }}>
-              <strong>{new URL(pending.siteUrl).hostname}</strong> signs you in through a different
-              server. Plume needs access to it to exchange your login for a token:
-            </p>
-            <ul style={{ margin: 0, paddingLeft: 20 }}>
-              {pending.origins.map((origin) => (
-                <li key={origin} style={{ fontFamily: "monospace", fontSize: 13 }}>
-                  {origin}
-                </li>
-              ))}
-            </ul>
-          </>
+        <h3 style={{ margin: 0 }}>Add Micropub account</h3>
+
+        {steps ? (
+          <ol
+            aria-live="polite"
+            style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}
+          >
+            {steps.map((step) => (
+              <li
+                key={step.id}
+                style={{ display: "grid", gridTemplateColumns: "1.2rem 1fr", fontSize: 13 }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    color: COLOR[step.state],
+                    display: "inline-block",
+                    animation:
+                      step.state === "active" ? "plume-spin 1s linear infinite" : undefined,
+                  }}
+                >
+                  {ICON[step.state]}
+                </span>
+                <span style={{ color: step.state === "waiting" ? "#999" : "inherit" }}>
+                  {step.label}
+                  {step.detail && (
+                    <span
+                      style={{
+                        display: "block",
+                        color: step.state === "failed" ? "crimson" : "#666",
+                        fontSize: 12,
+                      }}
+                    >
+                      {step.detail}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
         ) : (
           <label>
             Your site URL
@@ -154,7 +289,16 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
             />
           </label>
         )}
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
+
+        {awaitingGrant && (
+          <p style={{ margin: 0, fontSize: 13 }}>
+            <strong>{new URL(pending.siteUrl).hostname}</strong> signs you in through a different
+            server, so Plume needs access to it to exchange your login for a token.
+          </p>
+        )}
+
+        {error && <p style={{ color: "crimson", margin: 0 }}>{error}</p>}
+
         <div
           style={{
             display: "flex",
@@ -165,19 +309,23 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
             flexWrap: "wrap",
           }}
         >
-          <button type="button" onClick={onClose} disabled={busy}>
-            Cancel
+          {/* Never disabled: a step can stall on the network or on a permission
+              prompt, and closing the dialog must always remain possible. */}
+          <button type="button" onClick={onClose}>
+            {finished ? "Close" : "Cancel"}
           </button>
-          {pending ? (
+          {awaitingGrant ? (
             // Deliberately type="button" with its own handler: this click is
             // the fresh user gesture that permissions.request() requires.
             <button type="button" onClick={handleGrant} disabled={busy}>
               {busy ? "Authorizing…" : "Grant access & continue"}
             </button>
           ) : (
-            <button type="submit" disabled={busy || !url}>
-              {busy ? "Authorizing…" : "Authorize"}
-            </button>
+            !steps && (
+              <button type="submit" disabled={busy || !url}>
+                Authorize
+              </button>
+            )
           )}
         </div>
       </form>
