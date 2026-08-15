@@ -133,7 +133,12 @@ function Popup() {
               fontFamily: "system-ui, sans-serif",
               background: "white",
             }
-          : { minWidth: 360, maxWidth: 360, fontFamily: "system-ui, sans-serif" }
+          : {
+              // 360 + the 56px rail: the writing column keeps the width it had
+              minWidth: 420,
+              maxWidth: 420,
+              fontFamily: "system-ui, sans-serif",
+            }
       }
     >
       <header

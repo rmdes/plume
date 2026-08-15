@@ -180,208 +180,215 @@ export function Composer({
   const allowsContent = state.type !== "like";
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12, padding: 12 }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: 12 }}
+    >
       <TypePicker
         value={state.type}
         onChange={setType}
         serverLabels={serverPostTypeLabels(serverConfig)}
       />
 
-      {state.type === "photo" && state.photo?.[0] && (
-        <figure style={{ margin: 0 }}>
-          <img
-            src={state.photo[0]}
-            alt="Uploaded media preview"
-            style={{
-              maxWidth: "100%",
-              maxHeight: 200,
-              borderRadius: 4,
-              objectFit: "cover",
-            }}
-          />
-        </figure>
-      )}
-
-      {state.type === "photo" && !state.photo?.[0] && (
-        <div style={{ display: "grid", gap: 6 }}>
-          <label
-            style={{
-              display: "grid",
-              gap: 4,
-              padding: 12,
-              border: "1px dashed #ccc",
-              borderRadius: 4,
-              fontSize: 13,
-              textAlign: "center",
-              cursor: uploading ? "wait" : "pointer",
-            }}
-          >
-            {uploading ? "Uploading…" : "Choose an image to upload"}
-            <input
-              type="file"
-              accept="image/*"
-              disabled={uploading}
-              style={{ display: "none" }}
-              onChange={async (e) => {
-                const target = e.currentTarget as HTMLInputElement;
-                const file = target.files?.[0];
-                if (!file) return;
-                setUploading(true);
-                try {
-                  // Self-heal: if account.media_endpoint is missing (server didn't
-                  // advertise it via <link> tag on the homepage), look it up via
-                  // ?q=config which fetchAndCacheServerConfig will write back to
-                  // the account record for next time.
-                  let mediaEndpoint = account.media_endpoint;
-                  if (!mediaEndpoint) {
-                    const domain = new URL(account.me).hostname;
-                    const config = await fetchAndCacheServerConfig(accountStore(), domain);
-                    mediaEndpoint = config["media-endpoint"];
-                    if (!mediaEndpoint) {
-                      throw new Error(
-                        `Server at ${domain} has no media-endpoint configured. ` +
-                          "Add one to your Indiekit config or check ?q=config response.",
-                      );
-                    }
-                  }
-                  const client = new MicropubClient({
-                    micropubEndpoint: account.micropub_endpoint,
-                    mediaEndpoint,
-                    token: account.access_token,
-                  });
-                  const url = await client.uploadMedia(file, file.name);
-                  patch({ photo: [url] });
-                } catch (err) {
-                  onError(err instanceof Error ? err.message : String(err));
-                } finally {
-                  setUploading(false);
-                  target.value = "";
-                }
-              }}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => setShowMediaPicker(true)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#3b82f6",
-              cursor: "pointer",
-              fontSize: 12,
-              padding: 0,
-              textAlign: "center",
-            }}
-          >
-            Or browse media already on your server →
-          </button>
-        </div>
-      )}
-
-      {showMediaPicker && (
-        <MediaPicker
-          account={account}
-          onSelect={(item) => {
-            patch({ photo: [item.url] });
-            setShowMediaPicker(false);
-          }}
-          onClose={() => setShowMediaPicker(false)}
-        />
-      )}
-
-      {needsTarget && (
-        <input
-          type="url"
-          required
-          placeholder={targetPlaceholder(state.type)}
-          value={targetUrl}
-          onInput={(e) => setTargetUrl((e.currentTarget as HTMLInputElement).value)}
-          style={{ width: "100%", padding: 8, fontSize: 13 }}
-        />
-      )}
-
-      {needsTitle && (
-        <input
-          type="text"
-          required
-          placeholder="Title"
-          value={state.name ?? ""}
-          onInput={(e) => patch({ name: (e.currentTarget as HTMLInputElement).value })}
-          style={{ width: "100%", padding: 8, fontSize: 16, fontWeight: 600 }}
-        />
-      )}
-
-      {allowsContent && (
-        <div style={{ display: "grid", gap: 4 }}>
-          <MarkdownToolbar
-            textareaRef={contentRef}
-            value={state.content ?? ""}
-            onChange={(next) => patch({ content: next })}
-            preview={showPreview}
-            onTogglePreview={() => setShowPreview((v) => !v)}
-            compact={!isPopout}
-          />
-          {showPreview ? (
-            <MarkdownPreview
-              source={state.content ?? ""}
-              minHeight={isPopout ? 360 : state.type === "article" ? 220 : 120}
-            />
-          ) : (
-            <textarea
-              ref={contentRef}
-              placeholder="What's on your mind? Markdown supported."
-              value={state.content ?? ""}
-              onInput={(e) => patch({ content: (e.currentTarget as HTMLTextAreaElement).value })}
-              // Article writing needs vertical room. In popout mode use a much
-              // larger default so long-form drafts don't feel cramped on first
-              // sight; the textarea is still vertically resizable either way.
-              rows={isPopout ? 20 : state.type === "article" ? 12 : 6}
+      {/* The fields share one column beside the rail. `minWidth: 0` lets it
+          shrink rather than forcing the popup wider than its own width. */}
+      <div style={{ display: "grid", gap: 12, flex: 1, minWidth: 0 }}>
+        {state.type === "photo" && state.photo?.[0] && (
+          <figure style={{ margin: 0 }}>
+            <img
+              src={state.photo[0]}
+              alt="Uploaded media preview"
               style={{
-                width: "100%",
-                padding: 8,
-                fontSize: isPopout ? 15 : 14,
-                fontFamily: "Lora, Georgia, serif",
-                resize: "vertical",
-                boxSizing: "border-box",
+                maxWidth: "100%",
+                maxHeight: 200,
+                borderRadius: 4,
+                objectFit: "cover",
               }}
             />
-          )}
-        </div>
-      )}
+          </figure>
+        )}
 
-      <CategoryChips
-        values={state.category ?? []}
-        suggestions={[]}
-        onChange={(next) => patch({ category: next })}
-      />
-      <SyndicateChips
-        targets={serverConfig?.["syndicate-to"] ?? []}
-        values={state.syndicateTo ?? []}
-        onChange={(next) => patch({ syndicateTo: next })}
-      />
+        {state.type === "photo" && !state.photo?.[0] && (
+          <div style={{ display: "grid", gap: 6 }}>
+            <label
+              style={{
+                display: "grid",
+                gap: 4,
+                padding: 12,
+                border: "1px dashed #ccc",
+                borderRadius: 4,
+                fontSize: 13,
+                textAlign: "center",
+                cursor: uploading ? "wait" : "pointer",
+              }}
+            >
+              {uploading ? "Uploading…" : "Choose an image to upload"}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploading}
+                style={{ display: "none" }}
+                onChange={async (e) => {
+                  const target = e.currentTarget as HTMLInputElement;
+                  const file = target.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  try {
+                    // Self-heal: if account.media_endpoint is missing (server didn't
+                    // advertise it via <link> tag on the homepage), look it up via
+                    // ?q=config which fetchAndCacheServerConfig will write back to
+                    // the account record for next time.
+                    let mediaEndpoint = account.media_endpoint;
+                    if (!mediaEndpoint) {
+                      const domain = new URL(account.me).hostname;
+                      const config = await fetchAndCacheServerConfig(accountStore(), domain);
+                      mediaEndpoint = config["media-endpoint"];
+                      if (!mediaEndpoint) {
+                        throw new Error(
+                          `Server at ${domain} has no media-endpoint configured. ` +
+                            "Add one to your Indiekit config or check ?q=config response.",
+                        );
+                      }
+                    }
+                    const client = new MicropubClient({
+                      micropubEndpoint: account.micropub_endpoint,
+                      mediaEndpoint,
+                      token: account.access_token,
+                    });
+                    const url = await client.uploadMedia(file, file.name);
+                    patch({ photo: [url] });
+                  } catch (err) {
+                    onError(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setUploading(false);
+                    target.value = "";
+                  }
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => setShowMediaPicker(true)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#3b82f6",
+                cursor: "pointer",
+                fontSize: 12,
+                padding: 0,
+                textAlign: "center",
+              }}
+            >
+              Or browse media already on your server →
+            </button>
+          </div>
+        )}
 
-      {(enabledExtensions ?? []).includes("ai-metadata") && (
-        <AiMetadataPanel
-          values={aiValues}
-          defaults={aiDefaults}
-          onChange={(next) => {
-            const ep: Record<string, string[]> = { ...(state.extensionProperties ?? {}) };
-            for (const [k, v] of Object.entries(next)) {
-              if (v) ep[k] = [v];
-              else delete ep[k];
-            }
-            patch({ extensionProperties: ep });
-          }}
+        {showMediaPicker && (
+          <MediaPicker
+            account={account}
+            onSelect={(item) => {
+              patch({ photo: [item.url] });
+              setShowMediaPicker(false);
+            }}
+            onClose={() => setShowMediaPicker(false)}
+          />
+        )}
+
+        {needsTarget && (
+          <input
+            type="url"
+            required
+            placeholder={targetPlaceholder(state.type)}
+            value={targetUrl}
+            onInput={(e) => setTargetUrl((e.currentTarget as HTMLInputElement).value)}
+            style={{ width: "100%", padding: 8, fontSize: 13 }}
+          />
+        )}
+
+        {needsTitle && (
+          <input
+            type="text"
+            required
+            placeholder="Title"
+            value={state.name ?? ""}
+            onInput={(e) => patch({ name: (e.currentTarget as HTMLInputElement).value })}
+            style={{ width: "100%", padding: 8, fontSize: 16, fontWeight: 600 }}
+          />
+        )}
+
+        {allowsContent && (
+          <div style={{ display: "grid", gap: 4 }}>
+            <MarkdownToolbar
+              textareaRef={contentRef}
+              value={state.content ?? ""}
+              onChange={(next) => patch({ content: next })}
+              preview={showPreview}
+              onTogglePreview={() => setShowPreview((v) => !v)}
+              compact={!isPopout}
+            />
+            {showPreview ? (
+              <MarkdownPreview
+                source={state.content ?? ""}
+                minHeight={isPopout ? 360 : state.type === "article" ? 220 : 120}
+              />
+            ) : (
+              <textarea
+                ref={contentRef}
+                placeholder="What's on your mind? Markdown supported."
+                value={state.content ?? ""}
+                onInput={(e) => patch({ content: (e.currentTarget as HTMLTextAreaElement).value })}
+                // Article writing needs vertical room. In popout mode use a much
+                // larger default so long-form drafts don't feel cramped on first
+                // sight; the textarea is still vertically resizable either way.
+                rows={isPopout ? 20 : state.type === "article" ? 12 : 6}
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  fontSize: isPopout ? 15 : 14,
+                  fontFamily: "Lora, Georgia, serif",
+                  resize: "vertical",
+                  boxSizing: "border-box",
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        <CategoryChips
+          values={state.category ?? []}
+          suggestions={[]}
+          onChange={(next) => patch({ category: next })}
         />
-      )}
+        <SyndicateChips
+          targets={serverConfig?.["syndicate-to"] ?? []}
+          values={state.syndicateTo ?? []}
+          onChange={(next) => patch({ syndicateTo: next })}
+        />
 
-      <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#999", fontSize: 11 }}>{account.me}</span>
-        <button type="submit" disabled={busy}>
-          {busy ? "Sending…" : "Post"}
-        </button>
-      </footer>
+        {(enabledExtensions ?? []).includes("ai-metadata") && (
+          <AiMetadataPanel
+            values={aiValues}
+            defaults={aiDefaults}
+            onChange={(next) => {
+              const ep: Record<string, string[]> = { ...(state.extensionProperties ?? {}) };
+              for (const [k, v] of Object.entries(next)) {
+                if (v) ep[k] = [v];
+                else delete ep[k];
+              }
+              patch({ extensionProperties: ep });
+            }}
+          />
+        )}
+
+        <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "#999", fontSize: 11 }}>{account.me}</span>
+          <button type="submit" disabled={busy}>
+            {busy ? "Sending…" : "Post"}
+          </button>
+        </footer>
+      </div>
     </form>
   );
 }
