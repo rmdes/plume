@@ -285,3 +285,76 @@ describe("MicropubClient.listMedia", () => {
     await expect(client.listMedia()).rejects.toThrow(/No media endpoint/);
   });
 });
+
+describe("MicropubClient.create property shapes", () => {
+  /**
+   * Micropub's JSON syntax requires array values, but wrapping alone is not
+   * enough: servers convert mf2 to JF2 first, and that collapses a
+   * single-element array back to a bare value. A reply posted from Plume 1.4.0
+   * surfaced as `syndicateTo?.includes is not a function`, thrown inside
+   * Indiekit when the collapsed value had no `.includes`. Anything that is not
+   * a uid string is therefore dropped rather than forwarded.
+   */
+  const send = async (syndicateTo: unknown) => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(null, { status: 201, headers: { Location: "https://example.com/1" } }),
+      );
+    const client = new MicropubClient({
+      micropubEndpoint: "https://example.com/micropub",
+      token: "tok",
+    });
+
+    await client.create({
+      content: "a reply",
+      inReplyTo: "https://example.com/post",
+      syndicateTo: syndicateTo as string[],
+    });
+
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    fetchSpy.mockRestore();
+    return body.properties;
+  };
+
+  for (const [label, value] of [
+    ["object", { 0: "https://bsky.app/profile/me" }],
+    ["number", 1],
+    ["boolean", true],
+  ] as Array<[string, unknown]>) {
+    it(`omits mp-syndicate-to entirely when given a ${label}`, async () => {
+      const properties = await send(value);
+      expect("mp-syndicate-to" in properties).toBe(false);
+    });
+  }
+
+  it("wraps a bare string target", async () => {
+    const properties = await send("https://bsky.app/profile/me");
+    expect(properties["mp-syndicate-to"]).toEqual(["https://bsky.app/profile/me"]);
+  });
+
+  it("keeps the usable targets from a mixed array", async () => {
+    const properties = await send(["https://bsky.app/profile/me", { x: 1 }, 2]);
+    expect(properties["mp-syndicate-to"]).toEqual(["https://bsky.app/profile/me"]);
+  });
+
+  it("leaves a well-formed array untouched", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(null, { status: 201, headers: { Location: "https://example.com/1" } }),
+      );
+    const client = new MicropubClient({
+      micropubEndpoint: "https://example.com/micropub",
+      token: "tok",
+    });
+
+    await client.create({ content: "x", syndicateTo: ["a", "b"], category: ["t"], photo: ["p"] });
+
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    expect(body.properties["mp-syndicate-to"]).toEqual(["a", "b"]);
+    expect(body.properties.category).toEqual(["t"]);
+    expect(body.properties.photo).toEqual(["p"]);
+    fetchSpy.mockRestore();
+  });
+});
