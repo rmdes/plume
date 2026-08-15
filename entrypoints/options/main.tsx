@@ -1,8 +1,10 @@
 import { render } from "preact";
+import { setLogContext } from "../../core/logger";
 import { useState } from "preact/hooks";
 import { AccountList } from "./AccountList";
 import { AddAccountDialog } from "./AddAccountDialog";
 import { DraftList } from "./DraftList";
+import { LogList } from "./LogList";
 import { QueueList } from "./QueueList";
 
 function Options() {
@@ -14,6 +16,7 @@ function Options() {
       <AccountList key={refreshKey} onAddClick={() => setShowAdd(true)} />
       <QueueList />
       <DraftList />
+      <LogList />
       {showAdd && (
         <AddAccountDialog
           onClose={() => setShowAdd(false)}
@@ -23,6 +26,8 @@ function Options() {
     </main>
   );
 }
+
+setLogContext("options");
 
 const root = document.getElementById("app");
 if (root) {

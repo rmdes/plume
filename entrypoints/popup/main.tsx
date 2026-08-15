@@ -2,6 +2,7 @@ import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { CLIENT_ID } from "../../core/auth-config";
 import { browser } from "../../core/browser-api";
+import { log, setLogContext } from "../../core/logger";
 import { refreshToken } from "../../core/indieauth";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
@@ -65,7 +66,7 @@ function Popup() {
       // Without this, any rejection here left `account`/`prefill` unset and the
       // popup sat on "Loading…" forever with nothing for the user to report.
       // Surface the message instead and let the render fall through.
-      console.error("[plume] popup init failed", e);
+      log.error("popup init failed", e);
       setLoadError(e instanceof Error ? e.message : String(e));
       setAccount((prev) => (prev === undefined ? null : prev));
       setPrefill((prev) => prev ?? {});
@@ -251,6 +252,8 @@ function Popup() {
     </main>
   );
 }
+
+setLogContext("popup");
 
 const root = document.getElementById("app");
 if (root) {

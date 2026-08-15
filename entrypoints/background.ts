@@ -1,5 +1,6 @@
 import { CLIENT_ID } from "../core/auth-config";
 import { computeBadgeState } from "../core/badge";
+import { log, setLogContext } from "../core/logger";
 import { action, browser } from "../core/browser-api";
 import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
 import { fetchImageAsBlob, filenameFromUrl, ImageFetchError } from "../core/image-fetch";
@@ -17,6 +18,8 @@ import {
 const PREFILL_KEY = "pendingPrefill";
 
 export default defineBackground(() => {
+  setLogContext("background");
+
   // Serialize refreshMenus to prevent racing removeAll/create cycles
   // triggered by concurrent onInstalled + storage.onChanged events.
   // If a refresh is requested while one is running, queue one more
@@ -66,7 +69,7 @@ export default defineBackground(() => {
           // are functionally harmless (the item already exists).
           const err = browser.runtime.lastError;
           if (err && !/duplicate id/i.test(err.message ?? "")) {
-            console.warn(`[plume] contextMenus.create(${item.id}):`, err.message);
+            log.warn(`contextMenus.create(${item.id})`, err);
           }
           resolve();
         },
@@ -113,10 +116,10 @@ export default defineBackground(() => {
   browser.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.accounts || changes.defaults) {
-      refreshMenus().catch((e) => console.error("refreshMenus failed", e));
+      refreshMenus().catch((e) => log.error("refreshMenus failed", e));
     }
     if (changes.queue) {
-      updateBadge().catch((e) => console.error("updateBadge failed", e));
+      updateBadge().catch((e) => log.error("updateBadge failed", e));
     }
   });
 
