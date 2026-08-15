@@ -1,14 +1,16 @@
 import type { PostType } from "../core/types";
 
-const TYPES: { value: PostType; label: string }[] = [
-  { value: "note", label: "Note" },
-  { value: "article", label: "Article" },
-  { value: "reply", label: "Reply" },
-  { value: "bookmark", label: "Bookmark" },
-  { value: "like", label: "Like" },
-  { value: "repost", label: "Repost" },
-  { value: "quote", label: "Quote" },
-  { value: "photo", label: "Photo" },
+// The icon carries the recognition at this size; the label is the fallback
+// for anyone who reads the glyph differently than intended.
+const TYPES: { value: PostType; label: string; icon: string }[] = [
+  { value: "note", label: "Note", icon: "✏️" },
+  { value: "article", label: "Article", icon: "📄" },
+  { value: "reply", label: "Reply", icon: "💬" },
+  { value: "bookmark", label: "Bookmark", icon: "🔖" },
+  { value: "like", label: "Like", icon: "❤️" },
+  { value: "repost", label: "Repost", icon: "🔁" },
+  { value: "quote", label: "Quote", icon: "❝" },
+  { value: "photo", label: "Photo", icon: "📷" },
 ];
 
 interface Props {
@@ -30,17 +32,18 @@ export function TypePicker({ value, onChange, serverLabels }: Props) {
     <div
       role="tablist"
       aria-label="Post type"
+      aria-orientation="vertical"
       style={{
         display: "flex",
-        gap: 4,
-        overflowX: "auto",
-        padding: "4px 0",
-        borderBottom: "1px solid #eee",
+        flexDirection: "column",
+        borderRight: "1px solid #eee",
+        alignSelf: "stretch",
       }}
     >
       {TYPES.map((t) => {
         const selected = value === t.value;
         const known = !advertised || t.value in serverLabels;
+        const label = serverLabels?.[t.value] ?? t.label;
         return (
           <button
             key={t.value}
@@ -48,20 +51,38 @@ export function TypePicker({ value, onChange, serverLabels }: Props) {
             aria-selected={selected}
             onClick={() => onChange(t.value)}
             type="button"
-            title={known ? undefined : "Not advertised by this server"}
+            title={known ? label : `${label} — not advertised by this server`}
             style={{
-              padding: "6px 10px",
+              display: "grid",
+              justifyItems: "center",
+              gap: 1,
+              padding: "6px 2px",
+              width: "4rem",
               background: selected ? "#3b82f6" : "transparent",
               color: selected ? "white" : "inherit",
               border: "none",
               borderRadius: 4,
               cursor: "pointer",
-              fontSize: 13,
-              whiteSpace: "nowrap",
               opacity: known || selected ? 1 : 0.45,
             }}
           >
-            {serverLabels?.[t.value] ?? t.label}
+            <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1.1 }}>
+              {t.icon}
+            </span>
+            <span
+              style={{
+                fontSize: 9,
+                textTransform: "uppercase",
+                letterSpacing: "-0.01em",
+                // Server names can be longer than the built-in labels
+                maxWidth: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+            </span>
           </button>
         );
       })}
