@@ -13,12 +13,24 @@
       MUST be kept verbatim — the Plume extension and IndieAuth servers depend
       on these <link rel="redirect_uri"> tags for the auth flow.
     -->
-    <!-- Pinned Chrome extension ID (shared between CWS production install and unpacked dev install, since wxt.config.ts embeds the CWS public key as manifest.key in dev mode) -->
+    <!--
+      Both callbacks are literal. Wildcards were removed deliberately: the
+      OAuth working group's position is that any wildcard support in redirect
+      URLs opens up attack vectors, and neither browser actually needs one.
+      https://github.com/indieweb/indieauth/issues/22#issuecomment-544204967
+    -->
+    <!-- Chrome: derived from the extension ID, pinned across the CWS install and
+         unpacked dev installs (wxt.config.ts embeds the CWS public key as
+         manifest.key in dev mode, so both resolve to the same ID) -->
     <link rel="redirect_uri" href="https://hcphdjeoolimpjjekegpobkhoealiige.chromiumapp.org/" />
-    <!-- Wildcard fallback for unpacked dev installs that don't embed the CWS public key -->
-    <link rel="redirect_uri" href="https://*.chromiumapp.org/" />
-    <!-- Firefox addon callback (UUID is per-install, can't be pinned) -->
-    <link rel="redirect_uri" href="https://*.extensions.allizom.org/" />
+    <!-- Firefox: sha1(browser_specific_settings.gecko.id) + .extensions.allizom.org,
+         i.e. sha1("plume@rmdes.net"). Fixed for every install because the
+         gecko id is pinned in wxt.config.ts — it is not a per-install UUID.
+         Regenerate this if that id ever changes. -->
+    <link
+      rel="redirect_uri"
+      href="https://18c46e9c3ea19e2ce2f904ee4b4228ff5e5d9abb.extensions.allizom.org/"
+    />
 
     <meta property="og:title" content="Plume — Micropub for browsers" />
     <meta
