@@ -1,3 +1,4 @@
+import { log } from "./logger";
 import type {
   CreateOptions,
   CreateResult,
@@ -47,26 +48,78 @@ export class MicropubClient {
     throw new Error(message);
   }
 
+  /**
+   * Micropub's JSON syntax requires every property value to be an array, and
+   * the fields below are the ones passed through from composer state rather
+   * than wrapped here. TypeScript types them as arrays but cannot enforce that
+   * on values restored from storage, and a server handed the wrong shape fails
+   * in its own terms — one reply-to-a-post report surfaced as
+   * `syndicateTo?.includes is not a function` thrown inside Indiekit.
+   *
+   * Coerce rather than throw: the post is what the user asked for, and losing
+   * it to a malformed optional field would be worse than sending it. The
+   * coercion is logged, since a non-array arriving here means something
+   * upstream stored the wrong shape and that is worth finding.
+   */
+  private static toValues(name: string, value: unknown): unknown[] {
+    if (Array.isArray(value)) return value;
+
+    log.warn(`coerced non-array "${name}" property`, {
+      message: `expected an array, got ${value === null ? "null" : typeof value}`,
+    });
+    return [value];
+  }
+
+  /**
+   * Like `toValues`, but drops anything that is not a string.
+   *
+   * Wrapping alone is not enough for `mp-syndicate-to`: servers convert mf2 to
+   * JF2 before reading it, and that collapses a single-element array back to a
+   * bare value — so `[{…}]` arrives as an object again and `.includes` throws.
+   * Syndication targets are always uid strings, so anything else is dropped
+   * rather than forwarded.
+   */
+  private static toStringValues(name: string, value: unknown): string[] {
+    const values = Array.isArray(value) ? value : [value];
+    const strings = values.filter((v): v is string => typeof v === "string");
+
+    if (strings.length !== values.length || !Array.isArray(value)) {
+      log.warn(`dropped unusable "${name}" values`, {
+        message: `expected an array of strings, got ${
+          Array.isArray(value)
+            ? `array containing ${values.length - strings.length} non-string`
+            : typeof value
+        }`,
+      });
+    }
+    return strings;
+  }
+
   async create(options: CreateOptions): Promise<CreateResult> {
+    const toValues = MicropubClient.toValues;
     const properties: Record<string, unknown[]> = {};
     if (options.content) properties.content = [options.content];
     if (options.name) properties.name = [options.name];
     if (options.summary) properties.summary = [options.summary];
     if (options.published) properties.published = [options.published];
-    if (options.category) properties.category = options.category;
-    if (options.syndicateTo) properties["mp-syndicate-to"] = options.syndicateTo;
+    if (options.category) properties.category = toValues("category", options.category);
+    if (options.syndicateTo) {
+      // Omitted entirely when nothing usable survives, rather than sent empty
+      const syndicateTo = MicropubClient.toStringValues("mp-syndicate-to", options.syndicateTo);
+      if (syndicateTo.length > 0) properties["mp-syndicate-to"] = syndicateTo;
+    }
     if (options.inReplyTo) properties["in-reply-to"] = [options.inReplyTo];
     if (options.likeOf) properties["like-of"] = [options.likeOf];
     if (options.repostOf) properties["repost-of"] = [options.repostOf];
     if (options.bookmarkOf) properties["bookmark-of"] = [options.bookmarkOf];
-    if (options.photo) properties.photo = options.photo;
-    if (options.video) properties.video = options.video;
-    if (options.audio) properties.audio = options.audio;
+    if (options.photo) properties.photo = toValues("photo", options.photo);
+    if (options.video) properties.video = toValues("video", options.video);
+    if (options.audio) properties.audio = toValues("audio", options.audio);
     if (options.slug) properties["mp-slug"] = [options.slug];
     if (options.postStatus) properties["post-status"] = [options.postStatus];
     if (options.extensionProperties) {
       for (const [key, value] of Object.entries(options.extensionProperties)) {
-        properties[key] = value;
+        properties[key] = toValues(key, value);
       }
     }
 

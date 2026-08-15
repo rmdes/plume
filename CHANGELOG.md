@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-08-15
+
+### Fixed
+
+- **Posting failed with `syndicateTo?.includes is not a function` whenever no syndication target was selected.** Reported against a reply, which is the post type least likely to be syndicated, but it applied to every type. Three things combined: `[]` is truthy in JavaScript, so `if (options.syndicateTo)` sent `"mp-syndicate-to": []` on every post where nothing was picked; `mf2tojf2` collapses an empty array to an empty _object_ (a single-element array becomes a string, longer arrays stay arrays); and the receiving server then called `.includes` on that object. It only surfaced on servers that have syndication targets configured, which is why it looked intermittent — selecting one target made it work, selecting none broke it.
+- Property values sent to the Micropub endpoint are now checked rather than trusted. `category`, `mp-syndicate-to`, `photo`, `video`, `audio` and extension properties were passed through from composer state unwrapped, though Micropub's JSON syntax requires every value to be an array. `mp-syndicate-to` is additionally reduced to uid strings and omitted when empty, since wrapping alone does not survive the server-side collapse to JF2. A coerced value is recorded in the debug log so the source of a bad shape can be found.
+
 ## [1.5.0] — 2026-08-15
 
 Onboarding and diagnostics. Two user reports this cycle each cost a
