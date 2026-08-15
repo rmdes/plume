@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchAndCacheServerConfig, CACHE_TTL_MS } from "./server-config";
+import { fetchAndCacheServerConfig, CACHE_TTL_MS, serverPostTypeLabels } from "./server-config";
 import { AccountStore } from "../storage/accounts";
 import { FakeBrowserStorage } from "../storage/browser-storage";
 import type { TokenData } from "./types";
@@ -63,5 +63,36 @@ describe("fetchAndCacheServerConfig", () => {
     vi.setSystemTime(new Date(Date.now() + CACHE_TTL_MS + 1000));
     await fetchAndCacheServerConfig(accounts, "rmendes.net");
     expect(fetchSpy).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe("serverPostTypeLabels", () => {
+  it("returns an empty map when the server advertises nothing", () => {
+    expect(serverPostTypeLabels(undefined)).toEqual({});
+    expect(serverPostTypeLabels({})).toEqual({});
+    expect(serverPostTypeLabels({ "post-types": [] })).toEqual({});
+  });
+
+  it("maps each advertised type to the server's own name", () => {
+    expect(
+      serverPostTypeLabels({
+        "post-types": [
+          { type: "note", name: "Note" },
+          { type: "article", name: "Journal entry" },
+        ],
+      }),
+    ).toEqual({ note: "Note", article: "Journal entry" });
+  });
+
+  it("skips entries missing a type or name", () => {
+    expect(
+      serverPostTypeLabels({
+        "post-types": [
+          { type: "note", name: "Note" },
+          { type: "bookmark" } as unknown as { type: string; name: string },
+          { name: "Nameless" } as unknown as { type: string; name: string },
+        ],
+      }),
+    ).toEqual({ note: "Note" });
   });
 });
