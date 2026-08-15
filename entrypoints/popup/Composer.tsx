@@ -7,6 +7,7 @@ import { MediaPicker } from "../../components/MediaPicker";
 import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
+import { log } from "../../core/logger";
 import { fetchAndCacheServerConfig, serverPostTypeLabels } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import { accountStore, defaultsStore, draftScope, queueStore } from "../../storage";
@@ -135,7 +136,12 @@ export function Composer({
       });
       const payload: CreateOptions = { ...state };
       if (payload.type === "quote") payload.type = "note";
+      log.info(`posting ${payload.type ?? "note"}`, {
+        domain: new URL(account.me).hostname,
+        syndicateTo: payload.syndicateTo?.length ?? 0,
+      });
       const result = await client.create(payload);
+      log.info("posted", { url: result.location });
       onPosted(result.location);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -150,12 +156,16 @@ export function Composer({
         if (authNeeded) {
           await queueStore().recordAttempt(id, { error: msg, authNeeded: true });
         }
+        log.warn(authNeeded ? "post queued (auth expired)" : "post queued (network)", err);
         onError(
           authNeeded
             ? `Auth expired. Saved to queue — reconnect in settings.`
             : `Network error — saved to retry queue.`,
         );
       } else {
+        // Recorded regardless of the debug-logging setting: a post that fails
+        // outright is the single most useful thing to have in a bug report.
+        log.error("post failed", err);
         onError(`Failed: ${msg}`);
       }
     } finally {

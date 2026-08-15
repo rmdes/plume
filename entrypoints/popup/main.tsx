@@ -43,13 +43,18 @@ function Popup() {
       setAccount(a);
       accountStore().list().then(setAccounts);
       if (!a) {
+        log.info("popup opened (no account connected)");
         setPrefill({});
         return;
       }
+      log.info("popup opened", { domain: new URL(a.me).hostname, popout: isPopout });
       // Kick off server config fetch (non-blocking)
       fetchAndCacheServerConfig(accountStore(), new URL(a.me).hostname)
         .then(setConfig)
-        .catch(() => setConfig({}));
+        .catch((e) => {
+          log.warn("server config unavailable", e);
+          setConfig({});
+        });
       accountStore().getEnabledExtensions(new URL(a.me).hostname).then(setEnabledExtensions);
       const pre = (await sessionStorage().get<PrefillState>(PREFILL_KEY)) ?? {};
       await sessionStorage().remove(PREFILL_KEY);

@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { CLIENT_ID, DEFAULT_SCOPE, getRedirectUri } from "../../core/auth-config";
 import { chromeIdentityLauncher } from "../../core/auth-launcher";
 import { browser } from "../../core/browser-api";
+import { log } from "../../core/logger";
 import { discoverEndpoints, endpointOrigins } from "../../core/discovery";
 import { startAuth } from "../../core/indieauth";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
@@ -87,6 +88,7 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
       patchStep(id, { state: "done" });
       return result;
     } catch (e) {
+      log.error(`add account: ${id} failed`, e);
       patchStep(id, {
         state: "failed",
         detail: e instanceof Error ? e.message : String(e),
@@ -107,6 +109,7 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
       }),
     );
     await accountStore().add(token);
+    log.info("account connected", { domain: new URL(token.me).hostname });
     onAdded();
 
     // Non-fatal: the account is already usable, and the popup refetches config
