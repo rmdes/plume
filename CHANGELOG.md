@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-08-15
+
+Onboarding and diagnostics. Two user reports this cycle each cost a
+round-trip that Plume had no way to shorten: it shipped no first-run
+guidance and kept no log a user could hand over. Both are fixed here.
+
+### Added
+
+- **A welcome page on first install.** Plume previously installed in silence, leaving people to work out that an account has to be connected before anything happens. [welcome.html](https://rmdes.github.io/plume/welcome.html) explains Micropub and IndieAuth in plain language rather than assuming IndieWeb familiarity, states the one real prerequisite up front — your site must support Micropub — and walks through connecting an account. Opens once, gated on a genuine install, so updates don't reopen it.
+- **A debug log you can hand over.** A 100-entry ring buffer, shown newest-first in settings with Copy and Clear. Errors are always recorded; everything quieter is behind a checkbox, so an enabled log stays readable while a disabled one still explains a failure. Entries are stripped to `name`, `message`, `status`, `statusText`, `method` and `url`, and `access_token`, `code`, `code_verifier`, `refresh_token` and `state` are redacted wherever they appear in a URL — a Micropub error can carry the request that produced it, including the `Authorization` header, and these logs exist to be pasted in public.
+- **The add-account flow now narrates itself.** Instead of one opaque "Authorizing…" spanning a permission prompt, endpoint discovery, a possible second prompt, a token exchange and an account write, every step is listed up front and marked waiting, active, done or failed. The extra grant step that delegated-IndieAuth servers need is added once discovery reports it.
+- **Post types now use your server's own names.** The `?q=post-types` response finally reaches the type picker, so a server that calls articles "Journal entry" shows that.
+
+### Fixed
+
+- **The type picker ignored server configuration entirely.** `TypePicker` accepted an `availableTypes` prop and filtered on it, but the composer never passed one, so a response Plume already fetched and cached was thrown away. Types a server doesn't advertise are now dimmed with a tooltip rather than hidden or disabled: Indiekit only advertises types it has fields configured for, so absence means "not configured for that server's own UI", not "this post will be rejected".
+- **Endpoint discovery had no timeout**, so a site that never answered hung the add-account flow indefinitely. Both fetches now give up after 10 seconds.
+- **Cancel was disabled while the add-account flow was busy**, which combined with the above left no way out of the dialog. It is never disabled now.
+- Loading server configuration is a deliberately non-fatal step: a server with a broken `?q=config` is reported in red but the account is still added, and the popup opens with a warm cache.
+
+### Changed
+
+- **The client_id page declares literal redirect URIs instead of wildcards.** The OAuth working group's position is that wildcards in redirect URLs open up attack vectors, and neither browser needs one — Chrome derives its callback host from the extension ID, and Firefox uses `sha1(browser_specific_settings.gecko.id)`, so both are fixed and declarable. Measured from `browser.identity.getRedirectURL()` and confirmed against that hash.
+
 ## [1.4.0] — 2026-08-12
 
 Drafts release. A single `??`-vs-`||` mistake in the draft key had made every
