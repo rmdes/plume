@@ -52,7 +52,28 @@ export function sanitizeForLog(error: unknown): Record<string, unknown> {
     }
   }
 
-  return Object.keys(safe).length > 0 ? safe : { message: String(error) };
+  if (Object.keys(safe).length > 0) {
+    return safe;
+  }
+
+  // Not a thrown value: context we attached ourselves, like
+  // `{ domain, popout }`. Whitelisting error fields would throw all of it away
+  // and record "[object Object]", so keep the keys and redact the values —
+  // they are the only reason the entry is worth reading.
+  const context: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof value === "string") {
+      context[key] = redactUrl(value);
+    } else if (typeof value === "number" || typeof value === "boolean" || value === null) {
+      context[key] = value;
+    } else if (Array.isArray(value)) {
+      context[key] = `[${value.length} items]`;
+    }
+    // Anything else (nested objects, functions) is dropped rather than
+    // serialised: unbounded depth in a log a user pastes in public
+  }
+
+  return Object.keys(context).length > 0 ? context : { message: String(error) };
 }
 
 let context = "unknown";
