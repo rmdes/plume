@@ -293,6 +293,10 @@ async function main(): Promise<void> {
   const ctx = await chromium.launchPersistentContext("", {
     headless: false,
     viewport: VIEWPORT,
+    // Escape hatch for machines where Playwright's bundled Chromium is
+    // unavailable (an OS newer than the pinned Playwright supports), matching
+    // the same override in tests/e2e/helpers.ts.
+    executablePath: process.env.CHROME_PATH || undefined,
     args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`],
   });
 
