@@ -3,6 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <title>Plume</title>
+    <style>
+      /* Fields are styled with width:100% and their own padding, which without
+         this makes them wider than the column holding them. Set once here so a
+         new field can't reintroduce the overflow. */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>

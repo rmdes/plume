@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-08-16
+
+### Changed
+
+- **The post-type picker is now a vertical rail.** It was a horizontal row with `overflow-x: auto` inside a 360px popup, so eight types meant a scrollbar and types that weren't visible until scrolled to. All eight now sit down the left as icon-above-label tabs, with the fields beside them. The popup goes from 360px to 420px so the writing column keeps the width it had rather than paying for the rail; pop-out mode needed no separate handling. Where a server advertises its own name for a type, that name is used, truncating with an ellipsis when longer than the built-in label — the full name is always in the tooltip.
+
+### Fixed
+
+- **The debug log added in 1.5.0 recorded almost nothing.** Every one of its call sites was a failure path and none covered posting, so the checkbox offering to record what Plume does produced an empty list. Worse, a post that failed outright called the error handler and returned without logging, so the crash that motivated building the log would not have appeared in it. The post lifecycle, popup open, account connected, per-step add-account failures and unavailable server config are now recorded; failures unconditionally, the rest behind the checkbox so an enabled log doesn't accumulate the URL of everything published.
+- **Fields in the composer were wider than the popup.** The URL and title inputs set `width: 100%` alongside their own padding without `box-sizing: border-box`, so they measured 16px past the column holding them — visible as clipping once the rail narrowed that column. `border-box` is now set once for the whole popup rather than per field, so a new field cannot reintroduce it.
+- Screenshots on the project site and in the README showed the previous horizontal picker. `bun run screenshots` also honours `CHROME_PATH` now, matching the E2E harness, so it can run where Playwright's bundled Chromium is unavailable.
+
 ## [1.5.1] — 2026-08-15
 
 ### Fixed
