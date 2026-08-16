@@ -48,7 +48,7 @@ and metadata you chose.
 
 ## Features
 
-- **Quick composer** in the toolbar popup — notes, articles, replies, bookmarks, likes, reposts, quotes, photos.
+- **Quick composer** in the toolbar popup — notes, articles, replies, bookmarks, likes, reposts, quotes, photos, picked from a vertical rail so every type is one click away.
 - **Markdown toolbar + preview** — bold/italic/link/list/quote/code/heading buttons above the textarea; toggle a live rendered preview pane (snarkdown + DOMPurify, lazy-loaded).
 - **Pop-out composer** (`↗` button) opens the same composer in a tab at desk-width (480–720 px) for long-form article writing.
 - **Capture from anywhere** — right-click any page, link, selection, or image to post.
@@ -57,10 +57,12 @@ and metadata you chose.
 - **Drafts** auto-save while you type; restore on next popup open (7-day TTL).
 - **Retry queue** with exponential backoff (30s → 24h) for failed posts.
 - **Live-updating** queue and draft lists on the options page (subscribed to `chrome.storage.onChanged`).
-- **Server-aware** — reads `?q=config`, `?q=post-types`, `?q=category` from your blog. Detects supported extension properties and surfaces "✓ Server supports" badges.
+- **Server-aware** — reads `?q=config`, `?q=post-types`, `?q=category` from your blog. Post types are labelled with your server's own names, types it doesn't advertise are dimmed, and detected extension properties get "✓ Server supports" badges.
 - **AI transparency metadata** — optional per-post fields disclosing AI involvement.
 - **Keyboard shortcut** — `Alt+Shift+P` opens the composer popup (rebindable in browser settings).
-- **IndieAuth + PKCE** via `chrome.identity.launchWebAuthFlow`.
+- **IndieAuth + PKCE** via `chrome.identity.launchWebAuthFlow`. Connecting an account shows each step as it happens — permission, endpoint discovery, token exchange, server config — so a failure says which part failed.
+- **A debug log you can hand over** — errors are always recorded; tick one box to record the steps leading up to them. Access tokens and authorization codes are stripped before anything is written, so it's safe to paste into an issue.
+- **A welcome page on first install** that explains Micropub and IndieAuth without assuming you already know them.
 - **Narrow permissions** — install asks for nothing broad; host permissions requested per-account.
 - **No telemetry** — your data stays in your browser. See [PRIVACY.md](./PRIVACY.md).
 
@@ -83,7 +85,8 @@ bun install
 bun run dev          # Chrome dev mode (hot reload)
 bun run dev:firefox  # Firefox dev mode
 bun run build        # Production build
-bun test             # Unit tests (vitest) — 127 tests
+bun run test         # Unit tests (vitest) — note `run`: bare `bun test` uses
+                     # Bun's own runner, which doesn't understand vitest mocks
 bun run test:e2e     # Playwright E2E (chromium)
 bun run screenshots  # Regenerate the screenshots above
 ```
@@ -91,10 +94,10 @@ bun run screenshots  # Regenerate the screenshots above
 ## Architecture
 
 - `core/` — pure-logic modules (Micropub HTTP, IndieAuth + PKCE, retry executor, normalization, extension detection)
-- `storage/` — `chrome.storage.local` abstractions (accounts, drafts, queue, defaults, session)
+- `storage/` — `chrome.storage.local` abstractions (accounts, drafts, queue, defaults, logs, session)
 - `entrypoints/` — extension surfaces (popup, options, background service worker)
 - `components/` — shared Preact components (composer chips, AI metadata panel, MediaPicker)
-- `tests/` — vitest unit tests (127) and Playwright E2E (3 on chromium)
+- `tests/` — vitest unit tests and Playwright E2E (chromium)
 - `scripts/` — capture-screenshots, lint-fetch privacy enforcement
 
 Built with [WXT](https://wxt.dev) + [Preact](https://preactjs.com) +

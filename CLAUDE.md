@@ -18,7 +18,7 @@ bun run build        # Production build → .output/chrome-mv3
 bun run build:firefox# Production build → .output/firefox-mv2
 bun run zip          # Store-ready Chrome zip → .output/plume-X.Y.Z-chrome.zip
 bun run zip:firefox  # Store-ready Firefox zip → .output/plume-X.Y.Z-firefox.zip
-bun run test         # Vitest unit tests (113 tests, ~3s)
+bun run test         # Vitest unit tests (~4s)
 bun run test:e2e     # Playwright E2E against mock server (chromium only)
 bun run typecheck    # tsc --noEmit
 bun run lint         # eslint . && prettier --check .
@@ -40,6 +40,7 @@ core/          Pure-logic modules — no chrome.* APIs, fully unit-testable
 ├── extensions.ts         Known mf2 extension registry + detectExtensions()
 ├── image-fetch.ts        Cross-origin image fetch with permission gating
 ├── indieauth.ts          PKCE start/exchange/refresh
+├── logger.ts             log.error/warn/info → LogStore, with sanitizeForLog
 ├── micropub-client.ts    HTTP client (create/update/delete/query/upload/listMedia)
 ├── normalize.ts          Selection → Markdown blockquote, URL → mf2 properties
 ├── page-title.ts         Fetch <title> from current page
@@ -52,12 +53,13 @@ storage/       chrome.storage.local abstractions
 ├── browser-storage.ts    BrowserStorage interface + FakeBrowserStorage for tests
 ├── defaults.ts           DefaultsStore — active account + AI metadata defaults
 ├── drafts.ts             DraftStore — auto-save / 7-day TTL
+├── logs.ts               LogStore — 100-entry debug ring buffer
 ├── queue.ts              QueueStore — pending posts + attempt history
 └── index.ts              Singleton factories (accountStore(), queueStore(), ...)
 
 entrypoints/   Extension surfaces (one per HTML/JS bundle)
 ├── background.ts         Service worker — context menus + queue executor + openPopupSafe
-├── popup/                Toolbar popup (360 px) + ?popout=1 tab mode (720 px)
+├── popup/                Toolbar popup (420 px) + ?popout=1 tab mode (720 px)
 │   ├── main.tsx          Popup component — owns server-config fetch + draft prefill
 │   ├── Composer.tsx      Post composer — type picker, fields, submit/queue
 │   ├── useComposerState.ts
@@ -66,6 +68,7 @@ entrypoints/   Extension surfaces (one per HTML/JS bundle)
     ├── main.tsx
     ├── AccountList.tsx + AddAccountDialog.tsx
     ├── QueueList.tsx + DraftList.tsx (chrome.storage.onChanged subscribers)
+    ├── LogList.tsx          Debug log viewer + opt-in checkbox
     └── ExtensionToggles.tsx (renders detected/enabled extension state)
 
 components/    Shared Preact components
@@ -111,7 +114,7 @@ in `openPopupSafe()` which falls back to `chrome.tabs.create({url: "popup.html?p
 ### `?popout=1` mode
 
 Same `popup.html` entry — query-param flag at the top of `popup/main.tsx`
-switches the layout from 360 px toolbar to 480–720 px centered card with a
+switches the layout from 420 px toolbar to 480–720 px centered card with a
 roomier textarea (rows=20 vs rows=6). The `↗` button in the popup header
 triggers this and closes the toolbar popup. The `openPopupSafe` fallback
 also passes `?popout=1` so sidebar users get the better layout for free.
@@ -204,6 +207,17 @@ MediaPicker and the photo uploader both self-heal: call
 `fetchAndCacheServerConfig` (which writes the discovered endpoint back to
 the account record) before the first request needing it.
 
+### Diagnostics go through `core/logger.ts`, not `console`
+
+`log.error` / `log.warn` / `log.info` write to a 100-entry ring buffer the user
+can copy out of the options page, and still print to console. Errors are
+recorded unconditionally; `info` is behind the "record everything" checkbox, so
+a log left on doesn't accumulate the URL of everything published. Pass the
+thrown value, not a string — `sanitizeForLog` keeps only `name`, `message`,
+`status`, `statusText`, `method`, `url` and redacts `access_token`, `code`,
+`code_verifier`, `refresh_token`, `state` from URLs. These logs exist to be
+pasted into public bug reports.
+
 ### Dynamic vs static imports
 
 Avoid `await import("...")` when the same module is already statically
@@ -228,6 +242,8 @@ For each new release:
 
 ## Known gotchas
 
+- **`bun run screenshots` needs `CHROME_PATH` too**, same as E2E, and fails with "Mock server start timeout" if a previous E2E run left its mock server holding port 18750 — `pkill -f mock-server.ts` first. Screenshots are used by both `docs/site/index.html` and `README.md`, so regenerate them whenever the composer changes visibly.
+- **Micropub JSON requires every property value to be an array**, and mf2→JF2 conversion on the server collapses a single-element array to a scalar and an _empty_ array to an empty object. `MicropubClient.create` coerces accordingly; don't pass composer state straight to the wire.
 - **`bun test` ≠ `bun run test`.** Bun's built-in runner doesn't understand vitest mocks.
 - **The Firefox build is MV2 and its APIs diverge**, invisibly to typecheck, CI, and the Chromium-only E2E suite. Never use the bare `chrome` global at runtime — import from `core/browser-api.ts`. See "The Firefox build is MV2" above.
 - **E2E needs a Chromium that Playwright can't install here** (Ubuntu 26.04 is unsupported by the pinned version, and system Chrome ignores `--load-extension`). Run with `CHROME_PATH=~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome bun run test:e2e`; `launchWithExtension` reads that override.
