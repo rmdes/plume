@@ -8,6 +8,7 @@ import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import { accountStore, draftScope, draftStore, sessionStorage } from "../../storage";
 import { Composer } from "./Composer";
+import { DraftPanel } from "./DraftPanel";
 
 const PREFILL_KEY = "pendingPrefill";
 
@@ -31,6 +32,8 @@ function Popup() {
   const [enabledExtensions, setEnabledExtensions] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showDrafts, setShowDrafts] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
 
   function openInTab() {
     void browser.tabs.create({ url: browser.runtime.getURL("popup.html?popout=1") });
@@ -56,6 +59,10 @@ function Popup() {
           setConfig({});
         });
       accountStore().getEnabledExtensions(new URL(a.me).hostname).then(setEnabledExtensions);
+      draftStore()
+        .list()
+        .then((all) => setDraftCount(all.filter((d) => d.domain === new URL(a.me).hostname).length))
+        .catch(() => setDraftCount(0));
       const pre = (await sessionStorage().get<PrefillState>(PREFILL_KEY)) ?? {};
       await sessionStorage().remove(PREFILL_KEY);
 
@@ -183,6 +190,27 @@ function Popup() {
           )}
         </span>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {draftCount > 0 && (
+            <button
+              onClick={() => setShowDrafts((v) => !v)}
+              type="button"
+              aria-label={`${draftCount} saved ${draftCount === 1 ? "draft" : "drafts"}`}
+              title={`${draftCount} saved ${draftCount === 1 ? "draft" : "drafts"}`}
+              aria-pressed={showDrafts}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: showDrafts ? "#3b82f6" : "#666",
+                fontSize: 13,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              🗒<span style={{ fontSize: 10 }}>{draftCount}</span>
+            </button>
+          )}
           {!isPopout && (
             <button
               onClick={openInTab}
@@ -237,20 +265,34 @@ function Popup() {
           Connecting to {new URL(account.me).hostname}…
         </div>
       )}
-      <Composer
-        account={account}
-        seed={prefill}
-        serverConfig={config ?? undefined}
-        enabledExtensions={enabledExtensions}
-        isPopout={isPopout}
-        onPosted={async (loc) => {
-          const domain = new URL(account.me).hostname;
-          await draftStore().remove(domain, draftScope(prefill));
-          setToast(`Posted ✓ ${loc}`);
-          setTimeout(() => window.close(), 800);
-        }}
-        onError={(msg) => setToast(`Error: ${msg}`)}
-      />
+      {showDrafts ? (
+        <DraftPanel
+          domain={new URL(account.me).hostname}
+          onClose={() => setShowDrafts(false)}
+          onOpen={(draft) => {
+            // Reload with the draft seeded so the composer picks it up through
+            // the same prefill path the context menus already use.
+            void sessionStorage()
+              .set({ [PREFILL_KEY]: draft })
+              .then(() => window.location.reload());
+          }}
+        />
+      ) : (
+        <Composer
+          account={account}
+          seed={prefill}
+          serverConfig={config ?? undefined}
+          enabledExtensions={enabledExtensions}
+          isPopout={isPopout}
+          onPosted={async (loc) => {
+            const domain = new URL(account.me).hostname;
+            await draftStore().remove(domain, draftScope(prefill));
+            setToast(`Posted ✓ ${loc}`);
+            setTimeout(() => window.close(), 800);
+          }}
+          onError={(msg) => setToast(`Error: ${msg}`)}
+        />
+      )}
       {toast && (
         <div
           role="status"
