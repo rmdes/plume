@@ -83,5 +83,17 @@ test("a real post is recorded in the debug log", async ({ browserName }) => {
   await expect(opts.getByText("posted", { exact: false })).toBeVisible({ timeout: 5000 });
   await expect(opts.getByText(/posting note/)).toBeVisible();
 
+  // The context is the point of the entry: recording "[object Object]" makes
+  // the log useless even though something was written.
+  const entries = await opts.evaluate(async () => {
+    const stored = (await chrome.storage.local.get("logs")) as {
+      logs?: Array<{ message: string; data?: Record<string, unknown> }>;
+    };
+    return stored.logs ?? [];
+  });
+  const opened = entries.find((e) => e.message === "popup opened");
+  expect(opened?.data).toMatchObject({ domain: "localhost" });
+  expect(JSON.stringify(opened?.data)).not.toContain("[object Object]");
+
   await ctx.close();
 });

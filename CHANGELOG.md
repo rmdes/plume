@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-08-16
+
+### Fixed
+
+- **Debug log entries recorded `[object Object]` instead of their context.** `log.info("popup opened", { domain, popout })` was writing `{"message":"[object Object]"}`, which is the one thing a log entry must not do — the context is the whole reason the entry is worth reading. `sanitizeForLog` whitelists the fields of a thrown value (`name`, `message`, `status`, `url`…), and a context object we attached ourselves has none of them, so everything was discarded and the object stringified. It now keeps the keys of a plain object and redacts the values, while still preferring error fields when the value really is a thrown error. Arrays are summarised as `[n items]` and nested objects dropped, so a log pasted in public can't carry unbounded depth.
+
 ## [1.6.0] — 2026-08-16
 
 ### Changed
