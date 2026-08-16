@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Drafts are reachable from the composer itself.** They were only listed in settings, which is a long way from where you are when you want one. A 🗒 button now sits in the popup header beside the pop-out arrow, showing how many drafts this blog has, and opens them in place — picking one loads it into the composer without opening a tab or leaving the popup. Each row shows what the draft says, its post type, the site a reply or bookmark targets, and how long ago it was saved, with a × to delete. The button is hidden when there are no drafts, so the header stays clean for people who never accumulate any. Drafts remain listed in settings, where they can be opened across accounts.
+- **Drafts are reachable from the composer itself.** They were only listed in settings, which is a long way from where you are when you want one. A 🗒 button now sits in the popup header beside the pop-out arrow, showing how many drafts this blog has, and opens them in place — picking one loads it into the composer without opening a tab or leaving the popup. Each row shows what the draft says, its post type, the site a reply or bookmark targets, and how long ago it was saved, with a × to delete. The control is a labelled chip reading "2 drafts" rather than an icon, since the notepad emoji has no glyph in some Linux font sets and degraded to an empty box. It is hidden when there are no drafts, so the header stays clean for people who never accumulate any. Drafts remain listed in settings, where they can be opened across accounts.
 
 ## [1.6.1] — 2026-08-16
 

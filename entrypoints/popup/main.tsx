@@ -198,17 +198,22 @@ function Popup() {
               title={`${draftCount} saved ${draftCount === 1 ? "draft" : "drafts"}`}
               aria-pressed={showDrafts}
               style={{
-                background: "none",
+                // A labelled chip rather than an icon: 🗒 has no glyph in some
+                // Linux font sets and degrades to an empty box, which left the
+                // one control meant to make drafts findable as the least
+                // visible thing in the header.
+                background: showDrafts ? "#3b82f6" : "#eff6ff",
+                color: showDrafts ? "white" : "#1d4ed8",
                 border: "none",
+                borderRadius: 10,
                 cursor: "pointer",
-                color: showDrafts ? "#3b82f6" : "#666",
-                fontSize: 13,
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "2px 8px",
+                whiteSpace: "nowrap",
               }}
             >
-              🗒<span style={{ fontSize: 10 }}>{draftCount}</span>
+              {draftCount} {draftCount === 1 ? "draft" : "drafts"}
             </button>
           )}
           {!isPopout && (
