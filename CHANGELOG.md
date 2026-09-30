@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-09-30
+
 ### Added
 
 - **Sign in through a browser tab where the browser has no sign-in window.** Firefox for Android has no `identity` API at all, so Plume could not log in there. Sign-in now runs in an ordinary tab whenever that API is missing, or when "Sign in using a browser tab instead of a popup window" is turned on in settings, which also helps on desktop browsers whose sign-in window closes at once. The login lands on `https://rmdes.github.io/plume/callback.html`, on the same origin as Plume's client id, where a content script scoped to that one page hands the result to the extension; the exchange finishes in the background so a discarded settings tab loses nothing, and the new account is in the list when you return. Desktop Chrome and Firefox keep the popup window they had. The install prompt gains one line for that page. The Firefox listing now declares Android compatibility (Firefox 120 or later). This adds a content script for that one page, which browsers treat as a new site permission: Chrome disables the extension after the update until you re-approve it on `chrome://extensions`, and Firefox shows an update permission prompt.
