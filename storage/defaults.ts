@@ -15,6 +15,8 @@ export interface UserDefaults {
   syndicateTo: string[];
   notifyOnBackgroundSuccess?: boolean;
   debugLogging?: boolean;
+  /** Force the tab-based sign-in even where `identity.launchWebAuthFlow` exists. */
+  tabSignIn?: boolean;
 }
 
 const EMPTY: UserDefaults = {
@@ -53,5 +55,9 @@ export class DefaultsStore {
 
   async setDebugLogging(value: boolean): Promise<void> {
     await this.patch({ debugLogging: value });
+  }
+
+  async setTabSignIn(value: boolean): Promise<void> {
+    await this.patch({ tabSignIn: value });
   }
 }

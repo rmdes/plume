@@ -9,12 +9,11 @@ import type { Endpoints, TokenData } from "./types";
  */
 export type AuthLauncher = (authUrl: string) => Promise<string>;
 
-export interface StartAuthArgs {
+export interface PrepareAuthArgs {
   siteUrl: string;
   clientId: string;
   redirectUri: string;
   scope: string;
-  launcher: AuthLauncher;
   /**
    * Endpoints already discovered by the caller. Callers that must inspect the
    * endpoints before authorizing — e.g. to request host permissions for a
@@ -24,7 +23,24 @@ export interface StartAuthArgs {
   endpoints?: Endpoints;
 }
 
-export async function startAuth(args: StartAuthArgs): Promise<TokenData> {
+export interface StartAuthArgs extends PrepareAuthArgs {
+  launcher: AuthLauncher;
+}
+
+export interface PreparedAuth {
+  authUrl: string;
+  state: string;
+  verifier: string;
+  endpoints: Endpoints;
+}
+
+/**
+ * Everything before the user sees a login page: endpoint check, PKCE, state,
+ * authorization URL. Shared by the identity flow (which awaits the redirect in
+ * place) and the tab flow (which persists `state` and `verifier` and finishes
+ * in the background script).
+ */
+export async function prepareAuth(args: PrepareAuthArgs): Promise<PreparedAuth> {
   const endpoints = args.endpoints ?? (await discoverEndpoints(args.siteUrl));
   if (!endpoints.authorization_endpoint || !endpoints.token_endpoint) {
     throw new Error(
@@ -48,20 +64,26 @@ export async function startAuth(args: StartAuthArgs): Promise<TokenData> {
   authUrl.searchParams.set("code_challenge_method", "S256");
   authUrl.searchParams.set("me", args.siteUrl);
 
-  const redirectResult = await args.launcher(authUrl.toString());
+  return { authUrl: authUrl.toString(), state, verifier: pkce.verifier, endpoints };
+}
+
+export async function startAuth(args: StartAuthArgs): Promise<TokenData> {
+  const prepared = await prepareAuth(args);
+
+  const redirectResult = await args.launcher(prepared.authUrl);
   const redirectUrl = new URL(redirectResult);
   const code = redirectUrl.searchParams.get("code");
   const returnedState = redirectUrl.searchParams.get("state");
 
   if (!code) throw new Error("Authorization response missing code");
-  if (returnedState !== state) throw new Error("State mismatch — possible CSRF");
+  if (returnedState !== prepared.state) throw new Error("State mismatch — possible CSRF");
 
   return exchangeCode({
     code,
-    verifier: pkce.verifier,
+    verifier: prepared.verifier,
     redirectUri: args.redirectUri,
     clientId: args.clientId,
-    endpoints,
+    endpoints: prepared.endpoints,
   });
 }
 

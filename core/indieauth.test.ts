@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type AuthLauncher, exchangeCode, refreshToken, startAuth } from "./indieauth";
+import { type AuthLauncher, exchangeCode, prepareAuth, refreshToken, startAuth } from "./indieauth";
 import type { Endpoints, TokenData } from "./types";
 
 const CLIENT_ID = "https://rmdes.github.io/plume/";
@@ -127,6 +127,49 @@ describe("startAuth", () => {
         launcher,
       }),
     ).rejects.toThrow(/State mismatch/);
+  });
+});
+
+describe("prepareAuth", () => {
+  const endpoints: Endpoints = {
+    micropub: "https://rmendes.net/micropub",
+    token_endpoint: "https://rmendes.net/auth/token",
+    authorization_endpoint: "https://rmendes.net/auth",
+  };
+
+  it("builds the authorization URL with PKCE and a fresh state", async () => {
+    const prepared = await prepareAuth({
+      siteUrl: "https://rmendes.net/",
+      clientId: CLIENT_ID,
+      redirectUri: REDIRECT_URI,
+      scope: "create",
+      endpoints,
+    });
+    const url = new URL(prepared.authUrl);
+    expect(url.origin + url.pathname).toBe("https://rmendes.net/auth");
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("client_id")).toBe(CLIENT_ID);
+    expect(url.searchParams.get("redirect_uri")).toBe(REDIRECT_URI);
+    expect(url.searchParams.get("scope")).toBe("create");
+    expect(url.searchParams.get("me")).toBe("https://rmendes.net/");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("code_challenge")).toBeTruthy();
+    expect(url.searchParams.get("state")).toBe(prepared.state);
+    expect(prepared.state).toMatch(/^[0-9a-f]{32}$/);
+    expect(prepared.verifier.length).toBeGreaterThan(20);
+    expect(prepared.endpoints).toEqual(endpoints);
+  });
+
+  it("rejects endpoints without authorization or token endpoint", async () => {
+    await expect(
+      prepareAuth({
+        siteUrl: "https://rmendes.net/",
+        clientId: CLIENT_ID,
+        redirectUri: REDIRECT_URI,
+        scope: "create",
+        endpoints: { micropub: "https://rmendes.net/micropub" },
+      }),
+    ).rejects.toThrow(/authorization or token endpoint/);
   });
 });
 

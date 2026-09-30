@@ -60,10 +60,10 @@ and metadata you chose.
 - **Server-aware** — reads `?q=config`, `?q=post-types`, `?q=category` from your blog. Post types are labelled with your server's own names, types it doesn't advertise are dimmed, and detected extension properties get "✓ Server supports" badges.
 - **AI transparency metadata** — optional per-post fields disclosing AI involvement.
 - **Keyboard shortcut** — `Alt+Shift+P` opens the composer popup (rebindable in browser settings).
-- **IndieAuth + PKCE** via `chrome.identity.launchWebAuthFlow`. Connecting an account shows each step as it happens — permission, endpoint discovery, token exchange, server config — so a failure says which part failed.
+- **IndieAuth + PKCE** via `chrome.identity.launchWebAuthFlow`, or through an ordinary browser tab where that API is missing (Firefox for Android) or turned off in settings. Connecting an account shows each step as it happens — permission, endpoint discovery, token exchange, server config — so a failure says which part failed.
 - **A debug log you can hand over** — errors are always recorded; tick one box to record the steps leading up to them. Access tokens and authorization codes are stripped before anything is written, so it's safe to paste into an issue.
 - **A welcome page on first install** that explains Micropub and IndieAuth without assuming you already know them.
-- **Narrow permissions** — install asks for nothing broad; host permissions requested per-account.
+- **Narrow permissions** — install asks for nothing broad; host permissions requested per-account. Plume also runs a small script on its own sign-in callback page, `https://rmdes.github.io/plume/callback.html`, to read the sign-in result from that page's address and hand it to the extension; on the tab-based sign-in the authorization code and state do pass through that GitHub Pages URL and may reach its server logs, but the code is single-use and bound to a PKCE verifier that never leaves your browser, so it's useless on its own. It runs nowhere else.
 - **No telemetry** — your data stays in your browser. See [PRIVACY.md](./PRIVACY.md).
 
 ## Install

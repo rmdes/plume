@@ -30,7 +30,15 @@
       <li>No analytics, telemetry, error reporting</li>
       <li>No third-party services</li>
       <li>No cross-device sync</li>
-      <li>The client_id page does not receive user data</li>
+      <li>
+        The client_id page does not receive user data by itself, but on the tab-based sign-in the
+        authorization server redirects your browser to
+        <code>https://rmdes.github.io/plume/callback.html?code=…&amp;state=…</code>, so the code and
+        state pass through GitHub Pages in the URL and may appear in its server logs. That code is
+        single-use and bound to a PKCE verifier that never leaves your browser, so it's useless on
+        its own; nothing else is sent. A small script on that page reads the sign-in result from the
+        page's address and hands it to the extension. It runs nowhere else.
+      </li>
     </ul>
     <p>Full policy + source: <a href="https://github.com/rmdes/plume">github.com/rmdes/plume</a></p>
   </body>

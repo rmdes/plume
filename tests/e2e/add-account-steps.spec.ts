@@ -32,6 +32,13 @@ test("add-account dialog narrates each step", async ({ browserName }) => {
   // is instead of showing an opaque "Authorizing…" — and that the user can
   // always leave, which a stalled prompt previously prevented.
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeEnabled();
+
+  // A browser that accepts the request but never prompts (Vivaldi for
+  // Android 8.2) would otherwise spin on this step forever; after a while the
+  // step must say so. The unanswered prompt here stands in for that browser.
+  await expect(dialog.getByText("Still waiting for the browser's site-access prompt")).toBeVisible({
+    timeout: 15_000,
+  });
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
 

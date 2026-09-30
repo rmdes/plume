@@ -1,3 +1,4 @@
+import { CALLBACK_URL, isCallbackMessage } from "../core/auth-callback";
 import { CLIENT_ID } from "../core/auth-config";
 import { computeBadgeState } from "../core/badge";
 import { log, setLogContext } from "../core/logger";
@@ -5,12 +6,15 @@ import { action, browser } from "../core/browser-api";
 import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
 import { fetchImageAsBlob, filenameFromUrl, ImageFetchError } from "../core/image-fetch";
 import { refreshToken } from "../core/indieauth";
+import { fetchAndCacheServerConfig } from "../core/server-config";
 import { MicropubClient } from "../core/micropub-client";
 import { fetchPageTitle } from "../core/page-title";
 import { type NotifyEvent, runRetryTick } from "../core/retry-executor";
+import { completeTabAuth } from "../core/tab-auth";
 import {
   accountStore,
   defaultsStore,
+  pendingAuthStore,
   queueStore as queueStoreFactory,
   sessionStorage,
 } from "../storage";
@@ -137,6 +141,37 @@ export default defineBackground(() => {
     }
   });
 
+  // Tab-based sign-in: the callback page's content script sends the
+  // authorization server's answer here. Only Plume's own content script on
+  // Plume's own callback page is heard; anything else is ignored.
+  browser.runtime.onMessage.addListener(
+    (message: unknown, sender: chrome.runtime.MessageSender, sendResponse) => {
+      if (!isCallbackMessage(message)) return false;
+      if (sender.id !== browser.runtime.id || !sender.url?.startsWith(CALLBACK_URL)) {
+        return false;
+      }
+      (async () => {
+        const reply = await completeTabAuth(message, {
+          pending: pendingAuthStore(),
+          accounts: accountStore(),
+          fetchConfig: fetchAndCacheServerConfig,
+        });
+        sendResponse(reply);
+        if (reply.ok && sender.tab?.id !== undefined) {
+          // The user may have closed the tab already; the sign-in is complete either way.
+          await browser.tabs
+            .remove(sender.tab.id)
+            .catch((e) => log.warn("closing callback tab failed", e));
+        }
+      })().catch((e) => {
+        log.error("tab sign-in handler failed", e);
+        sendResponse({ ok: false, error: "Plume hit an unexpected error. See the debug log." });
+      });
+      // Keeps the message channel open for the async reply, on both engines.
+      return true;
+    },
+  );
+
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
     const prefill = buildPrefillFromContextInfo(info, { title: tab?.title });
     if (!prefill) return;
@@ -234,7 +269,6 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
   let mediaEndpoint = account.media_endpoint;
   if (!mediaEndpoint) {
     try {
-      const { fetchAndCacheServerConfig } = await import("../core/server-config");
       const domain = new URL(account.me).hostname;
       const config = await fetchAndCacheServerConfig(accountStore(), domain);
       mediaEndpoint = config["media-endpoint"];

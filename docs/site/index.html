@@ -31,6 +31,10 @@
       rel="redirect_uri"
       href="https://18c46e9c3ea19e2ce2f904ee4b4228ff5e5d9abb.extensions.allizom.org/"
     />
+    <!-- Tab-based sign-in (Firefox for Android, or "Sign in using a browser
+         tab" in settings). Same origin as the client_id, so IndieAuth accepts
+         it without this entry; listed for servers that check anyway. -->
+    <link rel="redirect_uri" href="https://rmdes.github.io/plume/callback.html" />
 
     <meta property="og:title" content="Plume — Micropub for browsers" />
     <meta

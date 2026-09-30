@@ -32,7 +32,9 @@ doesn't understand vitest mocks. **Always go through `bun run test`.**
 
 ```
 core/          Pure-logic modules — no chrome.* APIs, fully unit-testable
+├── auth-callback.ts      Callback URL, message shape, parseCallback (tab sign-in)
 ├── auth-config.ts        CLIENT_ID, redirect URI, default scope
+├── auth-flow.ts          pickAuthFlow: identity window vs browser tab
 ├── auth-launcher.ts      chrome.identity.launchWebAuthFlow wrapper
 ├── badge.ts              Toolbar badge state (queue size etc.)
 ├── context-menus.ts      Right-click menu builders
@@ -46,7 +48,8 @@ core/          Pure-logic modules — no chrome.* APIs, fully unit-testable
 ├── page-title.ts         Fetch <title> from current page
 ├── pkce.ts               crypto.subtle SHA-256 challenge
 ├── retry-executor.ts     Queue runner with exponential backoff
-└── server-config.ts      Cache ?q=config / ?q=post-types / ?q=category
+├── server-config.ts      Cache ?q=config / ?q=post-types / ?q=category
+└── tab-auth.ts           completeTabAuth — background half of the tab sign-in
 
 storage/       chrome.storage.local abstractions
 ├── accounts.ts           AccountStore — multi-account + enabled/detected extensions
@@ -54,11 +57,13 @@ storage/       chrome.storage.local abstractions
 ├── defaults.ts           DefaultsStore — active account + AI metadata defaults
 ├── drafts.ts             DraftStore — auto-save / 7-day TTL
 ├── logs.ts               LogStore — 100-entry debug ring buffer
+├── pending-auth.ts       PendingAuthStore — in-flight tab sign-ins in storage.session
 ├── queue.ts              QueueStore — pending posts + attempt history
 └── index.ts              Singleton factories (accountStore(), queueStore(), ...)
 
 entrypoints/   Extension surfaces (one per HTML/JS bundle)
 ├── background.ts         Service worker — context menus + queue executor + openPopupSafe
+├── callback.content.ts   Content script on the callback page (tab sign-in only)
 ├── popup/                Toolbar popup (420 px) + ?popout=1 tab mode (720 px)
 │   ├── main.tsx          Popup component — owns server-config fetch + draft prefill
 │   ├── Composer.tsx      Post composer — type picker, fields, submit/queue
@@ -119,9 +124,30 @@ roomier textarea (rows=20 vs rows=6). The `↗` button in the popup header
 triggers this and closes the toolbar popup. The `openPopupSafe` fallback
 also passes `?popout=1` so sidebar users get the better layout for free.
 
+### Tab-based sign-in
+
+`identity.launchWebAuthFlow` does not exist on Firefox for Android and is
+flaky on some desktop Chromium forks, so `AddAccountDialog` picks a flow with
+`pickAuthFlow(prefs, identityAvailable)`: the identity window when the API
+exists and the user has not turned on "Sign in using a browser tab", otherwise
+a plain tab. The tab flow is split across contexts on purpose:
+
+1. Options page: `prepareAuth` builds the URL, `pendingAuthStore().put()` saves
+   state + verifier in `storage.session`, `tabs.create` opens the login. The
+   page only watches storage afterwards; mobile browsers discard it freely.
+2. `docs/site/callback.html` (redirect URI, same origin as `CLIENT_ID`):
+   `entrypoints/callback.content.ts` reads the query and messages the
+   background.
+3. Background: `completeTabAuth` takes the pending record (get + delete, so a
+   code is exchanged once), exchanges, stores the account, fetches config,
+   replies, closes the tab.
+
+Never hold the login across the tab switch in page memory. Spec:
+`docs/superpowers/specs/2026-09-29-tab-sign-in-design.md`.
+
 ### Permissions
 
-- **At install:** `storage`, `contextMenus`, `identity`, `notifications`, `alarms`. No host permissions.
+- **At install:** `storage`, `contextMenus`, `identity`, `notifications`, `alarms`. The callback content script also grants `https://rmdes.github.io/plume/callback.html` at install; everything else stays optional per account.
 - **Per-account:** `<all_urls>` is declared optional — under `optional_host_permissions` on MV3 and `optional_permissions` on MV2 (see below). The user grants access scoped to each blog they connect, never up front.
 - **Two-step grant.** `AddAccountDialog` requests the site's own origin, then discovers endpoints, then requests any _additional_ origins it will actually fetch (`endpointOrigins()` — micropub, token, media; not `authorization_endpoint`, which is only opened in the auth window). Servers that delegate IndieAuth put their token endpoint on another origin, and without a permission for it the token exchange falls under normal CORS and dies as an opaque "Failed to fetch".
 - The second request needs its **own click** (the "Grant access & continue" button): `permissions.request()` only works inside a live user gesture, which the intervening discovery `await` destroys. Same-origin servers skip the second step entirely.
@@ -245,7 +271,9 @@ For each new release:
 - **`bun run screenshots` needs `CHROME_PATH` too**, same as E2E, and fails with "Mock server start timeout" if a previous E2E run left its mock server holding port 18750 — `pkill -f mock-server.ts` first. Screenshots are used by both `docs/site/index.html` and `README.md`, so regenerate them whenever the composer changes visibly.
 - **Micropub JSON requires every property value to be an array**, and mf2→JF2 conversion on the server collapses a single-element array to a scalar and an _empty_ array to an empty object. `MicropubClient.create` coerces accordingly; don't pass composer state straight to the wire.
 - **`bun test` ≠ `bun run test`.** Bun's built-in runner doesn't understand vitest mocks.
+- **Vivaldi for Android 8.2 never settles `permissions.request()` for an origin.** No prompt, no rejection, no resolution — the add-account flow parked on its first step until `AddAccountDialog` grew a 10 s stall hint. Host permission is not optional there: rmendes.net sends no CORS headers on its homepage, micropub, or token endpoint, so discovery and posting both need the grant. Upstream Chromium's Android build (`chrome/browser/ui/android/extensions/extension_install_dialog_view_android.cc`) resolves the prompt in every branch, so this is Vivaldi's port, not the platform.
 - **The Firefox build is MV2 and its APIs diverge**, invisibly to typecheck, CI, and the Chromium-only E2E suite. Never use the bare `chrome` global at runtime — import from `core/browser-api.ts`. See "The Firefox build is MV2" above.
+- **Testing on Firefox for Android needs a phone and web-ext.** Install Firefox Nightly on the device, enable USB debugging and "Remote debugging via USB" in Firefox settings, have `adb` on the machine, then `bun run build:firefox && bunx web-ext run -t firefox-android --source-dir .output/firefox-mv2 --android-device <adb device id> --firefox-apk org.mozilla.fenix`. Inspect via `about:debugging` on desktop Firefox. Vivaldi Android can only be tried through a store release.
 - **E2E needs a Chromium that Playwright can't install here** (Ubuntu 26.04 is unsupported by the pinned version, and system Chrome ignores `--load-extension`). Run with `CHROME_PATH=~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome bun run test:e2e`; `launchWithExtension` reads that override.
 - **MV3 service workers don't run in Playwright headless mode.** `launchWithExtension` sets `headless: false`.
 - **`/tmp/plume-ext-*` cleanup.** `tests/e2e/helpers.ts` registers a `process.on('exit')` rm handler — without it, E2E runs would leak ~88 KB per launch.

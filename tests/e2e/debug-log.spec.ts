@@ -69,7 +69,7 @@ test("a real post is recorded in the debug log", async ({ browserName }) => {
   // default would not accumulate the URL of everything the user publishes.
   const opts = await ctx.newPage();
   await opts.goto(`chrome-extension://${extId}/options.html`);
-  await opts.getByRole("checkbox").check();
+  await opts.getByLabel("Record everything Plume does").check();
 
   // Post for real against the mock server, then read what the log captured.
   const popup = await ctx.newPage();

@@ -1,13 +1,16 @@
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { CALLBACK_URL } from "../../core/auth-callback";
 import { CLIENT_ID, DEFAULT_SCOPE, getRedirectUri } from "../../core/auth-config";
+import { pickAuthFlow } from "../../core/auth-flow";
 import { chromeIdentityLauncher } from "../../core/auth-launcher";
 import { browser } from "../../core/browser-api";
 import { log } from "../../core/logger";
 import { discoverEndpoints, endpointOrigins } from "../../core/discovery";
-import { startAuth } from "../../core/indieauth";
+import { prepareAuth, startAuth } from "../../core/indieauth";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { Endpoints } from "../../core/types";
-import { accountStore } from "../../storage";
+import { accountStore, defaultsStore, pendingAuthStore } from "../../storage";
+import { authResultKey, type AuthResult } from "../../storage/pending-auth";
 
 interface Props {
   onClose: () => void;
@@ -62,6 +65,63 @@ const COLOR: Record<StepState, string> = {
   failed: "crimson",
 };
 
+/**
+ * How long an unanswered `permissions.request()` gets before the step says
+ * so. Desktop browsers show the site-access prompt as a modal at once, so
+ * this only surfaces on a browser that never shows one: Vivaldi for Android
+ * 8.2 accepts the call and then neither prompts nor settles the promise,
+ * which left the dialog spinning on its first step forever. The request is
+ * left pending rather than abandoned, in case the prompt is merely slow.
+ */
+const PROMPT_STALL_MS = 10_000;
+
+const PROMPT_STALL_HINT =
+  "Still waiting for the browser's site-access prompt. If none appeared, this browser " +
+  "cannot grant extensions access to sites yet (Vivaldi for Android 8.2 stalls here), " +
+  "and Plume cannot reach your site without it.";
+
+type TabAuthOutcome = "connected" | "cancelled";
+
+/**
+ * Resolves "connected" when the background records success for this sign-in,
+ * rejects when it records a failure, and resolves "cancelled" when the
+ * dialog goes away first. Watches storage rather than holding a promise
+ * across the tab switch, because on mobile this page may be discarded
+ * meanwhile — in which case nobody is waiting and the account simply appears
+ * in the list on return. The background records the outcome under the
+ * sign-in's own state key (`authResult:<state>`), not by diffing the account
+ * list, so re-adding an existing account resolves the same as a new one. The
+ * signal covers the other exit: the user closing the dialog while the login
+ * tab is still open, which must not leave a listener behind to fire on some
+ * later, unrelated account.
+ */
+function waitForTabAuth(state: string, signal: AbortSignal): Promise<TabAuthOutcome> {
+  return new Promise((resolve, reject) => {
+    function done(): void {
+      browser.storage.onChanged.removeListener(onChanged);
+      signal.removeEventListener("abort", onAbort);
+    }
+    function onAbort(): void {
+      done();
+      resolve("cancelled");
+    }
+    function onChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
+      if (area !== "session") return;
+      const result = changes[authResultKey(state)]?.newValue as AuthResult | undefined;
+      if (!result) return;
+      done();
+      if (result.ok) resolve("connected");
+      else reject(new Error(result.error));
+    }
+    if (signal.aborted) {
+      resolve("cancelled");
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    browser.storage.onChanged.addListener(onChanged);
+  });
+}
+
 export function AddAccountDialog({ onClose, onAdded }: Props) {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,6 +129,10 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
   const [pending, setPending] = useState<PendingGrant | null>(null);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [finished, setFinished] = useState(false);
+
+  // Aborted on unmount so a sign-in abandoned mid-tab leaves no listener behind.
+  const lifetime = useRef(new AbortController());
+  useEffect(() => () => lifetime.current.abort(), []);
 
   function patchStep(id: string, patch: Partial<Step>) {
     setSteps((current) =>
@@ -85,7 +149,7 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
     patchStep(id, { state: "active", detail: undefined });
     try {
       const result = await work();
-      patchStep(id, { state: "done" });
+      patchStep(id, { state: "done", detail: undefined });
       return result;
     } catch (e) {
       log.error(`add account: ${id} failed`, e);
@@ -97,7 +161,27 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
     }
   }
 
+  /** Both permission prompts go through here, so a stalled one is caught in either place. */
+  async function requestOrigins(stepId: string, origins: string[], denied: string) {
+    const stall = setTimeout(() => {
+      patchStep(stepId, { detail: PROMPT_STALL_HINT });
+      log.warn("site-access prompt unanswered", { origins, userAgent: navigator.userAgent });
+    }, PROMPT_STALL_MS);
+    try {
+      if (!(await browser.permissions.request({ origins }))) throw new Error(denied);
+    } finally {
+      clearTimeout(stall);
+    }
+  }
+
   async function authorize(siteUrl: string, endpoints: Endpoints) {
+    const identityAvailable = typeof browser.identity?.launchWebAuthFlow === "function";
+    const flow = pickAuthFlow(await defaultsStore().get(), identityAvailable);
+    if (flow === "tab") {
+      await authorizeInTab(siteUrl, endpoints);
+      return;
+    }
+
     const token = await runStep("token", () =>
       startAuth({
         siteUrl,
@@ -129,6 +213,46 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
     }
   }
 
+  /**
+   * The login happens in an ordinary tab and is finished by the background
+   * script (see core/tab-auth.ts), which also loads server config. This page
+   * only prepares the request and watches for the outcome.
+   */
+  async function authorizeInTab(siteUrl: string, endpoints: Endpoints) {
+    const host = new URL(siteUrl).hostname;
+    const outcome = await runStep("token", async () => {
+      const prepared = await prepareAuth({
+        siteUrl,
+        clientId: CLIENT_ID,
+        redirectUri: CALLBACK_URL,
+        scope: DEFAULT_SCOPE,
+        endpoints,
+      });
+      await pendingAuthStore().put({
+        state: prepared.state,
+        verifier: prepared.verifier,
+        siteUrl,
+        endpoints,
+        redirectUri: CALLBACK_URL,
+        clientId: CLIENT_ID,
+      });
+      // Subscribe before the tab opens so a fast server cannot beat us to it.
+      const waiting = waitForTabAuth(prepared.state, lifetime.current.signal);
+      patchStep("token", { detail: `Finish signing in at ${host} in the tab that opened` });
+      await browser.tabs.create({ url: prepared.authUrl });
+      return waiting;
+    });
+    // The dialog was closed while the login tab was open. The background
+    // still finishes the sign-in on its own; there is just nobody to tell.
+    if (outcome === "cancelled") return;
+    // Config is the background's job on this flow and non-fatal there, as
+    // it is non-fatal here on the identity flow.
+    patchStep("config", { state: "done" });
+    onAdded();
+    setFinished(true);
+    setTimeout(onClose, 700);
+  }
+
   async function handleAdd(event: Event) {
     event.preventDefault();
     setBusy(true);
@@ -147,11 +271,9 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
     try {
       // First prompt, still inside the submit gesture: the site's own origin,
       // which is all that's needed to read its <link rel> endpoints.
-      await runStep("permission", async () => {
-        if (!(await browser.permissions.request({ origins: [siteOrigin] }))) {
-          throw new Error(`Permission denied for ${siteOrigin}`);
-        }
-      });
+      await runStep("permission", () =>
+        requestOrigins("permission", [siteOrigin], `Permission denied for ${siteOrigin}`),
+      );
 
       const endpoints = await runStep("discovery", () => discoverEndpoints(url));
 
@@ -192,14 +314,14 @@ export function AddAccountDialog({ onClose, onAdded }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await runStep("grant", async () => {
-        if (!(await browser.permissions.request({ origins: pending.origins }))) {
-          throw new Error(
-            `Permission denied. Plume cannot complete sign-in without access to ` +
-              `this server's token endpoint.`,
-          );
-        }
-      });
+      await runStep("grant", () =>
+        requestOrigins(
+          "grant",
+          pending.origins,
+          "Permission denied. Plume cannot complete sign-in without access to " +
+            "this server's token endpoint.",
+        ),
+      );
       await authorize(pending.siteUrl, pending.endpoints);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

@@ -36,4 +36,12 @@ describe("DefaultsStore", () => {
     await store.setActiveAccount("rmendes.net");
     expect((await store.get()).activeAccount).toBe("rmendes.net");
   });
+
+  it("tabSignIn is off until set", async () => {
+    expect((await store.get()).tabSignIn).toBeUndefined();
+    await store.setTabSignIn(true);
+    expect((await store.get()).tabSignIn).toBe(true);
+    await store.setTabSignIn(false);
+    expect((await store.get()).tabSignIn).toBe(false);
+  });
 });

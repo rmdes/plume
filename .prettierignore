@@ -6,3 +6,4 @@ playwright-report
 test-results
 bun.lock
 *.d.ts
+.superpowers/
