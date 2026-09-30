@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
+import { browser } from "../../core/browser-api";
 import type { TokenData } from "../../core/types";
-import { accountStore } from "../../storage";
+import { accountStore, defaultsStore } from "../../storage";
 import { ExtensionToggles } from "./ExtensionToggles";
 
 interface Props {
@@ -10,15 +11,30 @@ interface Props {
 export function AccountList({ onAddClick }: Props) {
   const [accounts, setAccounts] = useState<TokenData[]>([]);
   const [activeDomain, setActiveDomain] = useState<string | null>(null);
+  const [tabSignIn, setTabSignIn] = useState(false);
 
   async function refresh() {
     const store = accountStore();
     setAccounts(await store.list());
     setActiveDomain(await store.getDefaultDomain());
+    setTabSignIn((await defaultsStore().get()).tabSignIn ?? false);
+  }
+
+  async function toggleTabSignIn(value: boolean) {
+    setTabSignIn(value);
+    await defaultsStore().setTabSignIn(value);
   }
 
   useEffect(() => {
     refresh();
+    // A tab-based sign-in is completed by the background script, possibly
+    // after this page was discarded and reopened, so the list must follow
+    // storage rather than wait for the dialog to tell it.
+    function onChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
+      if (area === "local" && ("accounts" in changes || "defaults" in changes)) void refresh();
+    }
+    browser.storage.onChanged.addListener(onChanged);
+    return () => browser.storage.onChanged.removeListener(onChanged);
   }, []);
 
   async function handleSetDefault(domain: string) {
@@ -40,6 +56,18 @@ export function AccountList({ onAddClick }: Props) {
           + Add account
         </button>
       </header>
+      <label style={{ display: "block", margin: "8px 0", fontSize: 13 }}>
+        <input
+          type="checkbox"
+          checked={tabSignIn}
+          onChange={(e) => void toggleTabSignIn((e.currentTarget as HTMLInputElement).checked)}
+        />{" "}
+        Sign in using a browser tab instead of a popup window
+        <span style={{ display: "block", color: "#666", fontSize: 12 }}>
+          Plume does this on its own where the browser has no sign-in window, such as Firefox for
+          Android. Turn it on if the popup window never appears or closes at once.
+        </span>
+      </label>
       {accounts.length === 0 ? (
         <p>No accounts yet. Click "Add account" to connect your Micropub blog.</p>
       ) : (

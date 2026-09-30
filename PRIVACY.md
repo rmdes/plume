@@ -23,8 +23,15 @@ browser unless you explicitly post:
   the IndieAuth servers your blog points to.
 - No data syncing across devices. Plume does not use `chrome.storage.sync`.
 - The `client_id` page at `https://rmdes.github.io/plume/` is a static HTML
-  file declaring redirect URIs for IndieAuth verification. It does not receive
-  any user data.
+  file declaring redirect URIs for IndieAuth verification; it does not receive
+  any user data. On the tab-based sign-in, though, the authorization server
+  redirects the browser to `https://rmdes.github.io/plume/callback.html?code=…&state=…`,
+  so the authorization code and state do pass through GitHub Pages in the
+  query string and may appear in GitHub's server logs. That code is single-use
+  and bound to a PKCE verifier that never leaves your browser, so it's useless
+  on its own; nothing else is sent. Plume also runs a small script on that
+  callback page to read the sign-in result from the page's address and hand it
+  to the extension. It runs nowhere else.
 
 ## Permissions
 

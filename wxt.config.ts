@@ -93,6 +93,12 @@ export default defineConfig({
           required: ["none"],
         },
       },
+      // Lists Plume as Android-compatible on AMO. 120 is the first Firefox for
+      // Android whose permissions.request works; identity does not exist
+      // there at all, which is what the tab sign-in is for.
+      gecko_android: {
+        strict_min_version: "120.0",
+      },
     },
   }),
   runner: {
