@@ -1,6 +1,7 @@
 import { CALLBACK_URL, isCallbackMessage } from "../core/auth-callback";
 import { CLIENT_ID } from "../core/auth-config";
 import { computeBadgeState } from "../core/badge";
+import { applyComposerSurface, COMPOSER_TAB_KEY } from "../core/composer-surface";
 import { log, setLogContext } from "../core/logger";
 import { action, browser } from "../core/browser-api";
 import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
@@ -28,6 +29,11 @@ const WELCOME_URL = new URL("welcome.html", CLIENT_ID).href;
 
 export default defineBackground(() => {
   setLogContext("background");
+
+  // The action's popup is in-memory browser state and resets whenever the
+  // extension is unloaded (updates, disable/enable, reload), so the stored
+  // choice is re-applied on every background start, not only on install.
+  restoreComposerSurface().catch((e) => log.warn("restoreComposerSurface failed", e));
 
   // Serialize refreshMenus to prevent racing removeAll/create cycles
   // triggered by concurrent onInstalled + storage.onChanged events.
@@ -107,6 +113,11 @@ export default defineBackground(() => {
 
   browser.runtime.onStartup.addListener(() => {
     updateBadge();
+  });
+
+  // Fires only while the action has no popup (see core/composer-surface.ts).
+  action.onClicked.addListener(() => {
+    openComposerTab().catch((e) => log.error("opening the composer tab failed", e));
   });
 
   browser.alarms.onAlarm.addListener(async (alarm) => {
@@ -201,6 +212,17 @@ async function updateBadge(): Promise<void> {
   });
   await action.setBadgeText({ text: state.text });
   await action.setBadgeBackgroundColor({ color: state.color });
+}
+
+/**
+ * The action's popup resets to the manifest default whenever the extension is
+ * unloaded, so the stored choice is re-applied on every background start. Only an
+ * explicit preference is applied; unset leaves the manifest default and lets
+ * the popup decide on its first open.
+ */
+async function restoreComposerSurface(): Promise<void> {
+  const { composerInTab } = await defaultsStore().get();
+  if (composerInTab !== undefined) await applyComposerSurface(composerInTab);
 }
 
 async function handleNotify(event: NotifyEvent): Promise<void> {
@@ -342,19 +364,47 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
 }
 
 /**
- * Opens the extension popup, falling back to a new tab if the current
- * browser window doesn't support `action.openPopup()` (e.g.,
- * Vivaldi side panels, dev-tools popouts, or browser windows without
- * a normal toolbar). The popup reads its prefill from browser.storage.session
- * the same way regardless of how it's opened.
+ * The composer as a full tab. Used when the toolbar popup is switched off
+ * (touch-only devices, or the settings checkbox) and as the fallback when the
+ * browser cannot show a popup at all.
+ * `reload` re-mounts an existing tab so it picks up a pending prefill from a
+ * context-menu post; the icon tap leaves it alone so unsaved typing survives.
+ */
+async function openComposerTab(reload = false): Promise<void> {
+  // ?popout=1 renders the composer at desk-width instead of the cramped
+  // toolbar layout. Same flag the explicit pop-out button uses — see
+  // entrypoints/popup/main.tsx.
+  const url = browser.runtime.getURL("popup.html?popout=1");
+  // One composer tab at a time: two of them would hydrate the same draft and
+  // overwrite each other. Chrome hides tab URLs without the `tabs` permission
+  // even for an extension's own pages (query({ url }) matches nothing), so the
+  // tab is remembered by id and checked with tabs.get, which needs no permission.
+  const knownId = await sessionStorage().get<number>(COMPOSER_TAB_KEY);
+  const existing =
+    knownId === undefined ? undefined : await browser.tabs.get(knownId).catch(() => undefined);
+  if (existing?.id !== undefined) {
+    await browser.tabs.update(existing.id, reload ? { url, active: true } : { active: true });
+    if (existing.windowId !== undefined) {
+      // Firefox for Android has no `windows` API; the tab is already active.
+      await browser.windows?.update(existing.windowId, { focused: true }).catch(() => undefined);
+    }
+    return;
+  }
+  const tab = await browser.tabs.create({ url });
+  if (tab.id !== undefined) await sessionStorage().set({ [COMPOSER_TAB_KEY]: tab.id });
+}
+
+/**
+ * Opens the extension popup, falling back to a tab if the current browser
+ * window doesn't support `action.openPopup()` (e.g., Vivaldi side panels,
+ * dev-tools popouts, or browser windows without a normal toolbar). The popup
+ * reads its prefill from browser.storage.session the same way regardless of
+ * how it's opened.
  */
 async function openPopupSafe(): Promise<void> {
   try {
     await action.openPopup();
   } catch {
-    // Tab fallback: pass ?popout=1 so the composer renders at desk-width
-    // instead of the cramped 360px toolbar layout. Same flag the explicit
-    // pop-out button uses — see entrypoints/popup/main.tsx.
-    await browser.tabs.create({ url: browser.runtime.getURL("popup.html?popout=1") });
+    await openComposerTab(true);
   }
 }

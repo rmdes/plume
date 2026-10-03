@@ -124,6 +124,15 @@ roomier textarea (rows=20 vs rows=6). The `↗` button in the popup header
 triggers this and closes the toolbar popup. The `openPopupSafe` fallback
 also passes `?popout=1` so sidebar users get the better layout for free.
 
+The surface is also a stored choice: `defaults.composerInTab` (`true` tab,
+`false` popup, unset = decide from `(hover: none) and (pointer: coarse)`).
+`applyComposerSurface()` in `core/composer-surface.ts` clears or restores the
+action's popup; with it cleared the icon tap fires `action.onClicked` in the
+background, which opens the pop-out tab. The popup redirects itself once on a
+touch-only device, the settings checkbox applies on change, and the background
+re-applies the stored choice on `onInstalled`/`onStartup` because an update
+resets the popup to the manifest default.
+
 ### Tab-based sign-in
 
 `identity.launchWebAuthFlow` does not exist on Firefox for Android and is
@@ -272,6 +281,7 @@ For each new release:
 - **Micropub JSON requires every property value to be an array**, and mf2→JF2 conversion on the server collapses a single-element array to a scalar and an _empty_ array to an empty object. `MicropubClient.create` coerces accordingly; don't pass composer state straight to the wire.
 - **`bun test` ≠ `bun run test`.** Bun's built-in runner doesn't understand vitest mocks.
 - **Vivaldi for Android 8.2 never settles `permissions.request()` for an origin.** No prompt, no rejection, no resolution — the add-account flow parked on its first step until `AddAccountDialog` grew a 10 s stall hint. Host permission is not optional there: rmendes.net sends no CORS headers on its homepage, micropub, or token endpoint, so discovery and posting both need the grant. Upstream Chromium's Android build (`chrome/browser/ui/android/extensions/extension_install_dialog_view_android.cc`) resolves the prompt in every branch, so this is Vivaldi's port, not the platform.
+- **Chromium on Android dismisses the action popup when the keyboard opens.** The popup is closed on any focus loss, and the soft keyboard counts, so a textarea in the popup is unusable there. Touch-only devices get the composer as a tab (see `?popout=1` mode); never add popup-only UI without checking the tab renders it too.
 - **The Firefox build is MV2 and its APIs diverge**, invisibly to typecheck, CI, and the Chromium-only E2E suite. Never use the bare `chrome` global at runtime — import from `core/browser-api.ts`. See "The Firefox build is MV2" above.
 - **Testing on Firefox for Android needs a phone and web-ext.** Install Firefox Nightly on the device, enable USB debugging and "Remote debugging via USB" in Firefox settings, have `adb` on the machine, then `bun run build:firefox && bunx web-ext run -t firefox-android --source-dir .output/firefox-mv2 --android-device <adb device id> --firefox-apk org.mozilla.fenix`. Inspect via `about:debugging` on desktop Firefox. Vivaldi Android can only be tried through a store release.
 - **E2E needs a Chromium that Playwright can't install here** (Ubuntu 26.04 is unsupported by the pinned version, and system Chrome ignores `--load-extension`). Run with `CHROME_PATH=~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome bun run test:e2e`; `launchWithExtension` reads that override.
