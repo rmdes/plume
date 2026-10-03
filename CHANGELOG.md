@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The composer tab was wider than a phone screen.** The pop-out layout kept a 480 px minimum width, so on a phone, where that tab is now the default surface, the browser zoomed the page out and the Post button, the settings gear and the preview toggle sat beyond the right edge. The card now fits the viewport and keeps its 720 px ceiling on wide screens.
+
 ## [1.7.1] — 2026-10-03
 
 ### Fixed

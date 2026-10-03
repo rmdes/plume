@@ -138,9 +138,11 @@ function Popup() {
           ? {
               // Desk-width layout: comfortable for articles, still readable
               // line lengths (typography research caps body width ~75ch ≈ 720px).
-              minWidth: 480,
-              maxWidth: 720,
-              margin: "32px auto",
+              // No minimum: on a phone this tab is the default surface, and a
+              // fixed 480px forced the layout viewport wider than the screen, so
+              // the browser zoomed the whole page out.
+              width: "min(720px, 100%)",
+              margin: "min(32px, 4vw) auto",
               boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
               borderRadius: 8,
               fontFamily: "system-ui, sans-serif",
