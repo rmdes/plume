@@ -1,6 +1,6 @@
 {
   "name": "plume",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Cross-browser Micropub client extension",
   "type": "module",
   "private": true,

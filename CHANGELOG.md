@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.3] — 2026-10-03
+
 ### Fixed
 
 - **The keyboard shortcut did nothing on Firefox.** The manifest named the reserved command `_execute_action`, which only Manifest V3 recognises; the Firefox build is Manifest V2 and needs `_execute_browser_action`. Each build now gets the name its manifest version understands, so Alt+Shift+P opens the composer on Firefox too.
