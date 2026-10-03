@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-10-03
+
 ### Fixed
 
 - **On phones and tablets the toolbar popup closed the moment the text area was touched.** Chromium dismisses an extension popup whenever focus leaves it, and on Android the keyboard appearing counts, so on Vivaldi for Android the composer vanished before a word could be typed; only the pop-out tab was usable. The icon now opens the composer as a tab on touch-only devices: the first tap still shows the popup for an instant while Plume records the choice, every later tap goes straight to the tab. A new settings checkbox, "Open the composer in a tab instead of the toolbar popup", forces either surface on any device, and the choice survives extension updates. Desktop behaviour is unchanged. Firefox for Android, which already showed the popup as a full page, now opens that same composer tab instead; untick the checkbox to go back.

@@ -130,8 +130,10 @@ The surface is also a stored choice: `defaults.composerInTab` (`true` tab,
 action's popup; with it cleared the icon tap fires `action.onClicked` in the
 background, which opens the pop-out tab. The popup redirects itself once on a
 touch-only device, the settings checkbox applies on change, and the background
-re-applies the stored choice on `onInstalled`/`onStartup` because an update
-resets the popup to the manifest default.
+re-applies the stored choice on every start (the action's popup is in-memory
+browser state and resets on update, reload, and disable/enable). The pop-out
+registers its tab id in `storage.session` so the icon tap focuses the one open
+composer tab instead of creating another.
 
 ### Tab-based sign-in
 
