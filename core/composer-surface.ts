@@ -5,6 +5,13 @@ import { log } from "./logger";
 export const COMPOSER_TAB_KEY = "composerTabId";
 
 /**
+ * Sent by the background to the remembered composer tab before focusing it.
+ * Only a live pop-out page answers; a tab the user navigated elsewhere has no
+ * listener, so the send rejects and the background opens a fresh composer.
+ */
+export const COMPOSER_PING = "composer-ping";
+
+/**
  * Phones and tablets match; a laptop with a mouse or trackpad does not, even
  * if it has a touch screen. This is the only device signal Plume uses — no
  * user-agent inspection.
