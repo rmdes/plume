@@ -1,7 +1,7 @@
 import { CALLBACK_URL, isCallbackMessage } from "../core/auth-callback";
 import { CLIENT_ID } from "../core/auth-config";
 import { computeBadgeState } from "../core/badge";
-import { applyComposerSurface, COMPOSER_TAB_KEY } from "../core/composer-surface";
+import { applyComposerSurface, COMPOSER_PING, COMPOSER_TAB_KEY } from "../core/composer-surface";
 import { log, setLogContext } from "../core/logger";
 import { action, browser } from "../core/browser-api";
 import { buildPrefillFromContextInfo, MENU_ITEMS, type Prefill } from "../core/context-menus";
@@ -370,6 +370,21 @@ async function handleImagePost(prefill: Prefill): Promise<void> {
  * `reload` re-mounts an existing tab so it picks up a pending prefill from a
  * context-menu post; the icon tap leaves it alone so unsaved typing survives.
  */
+/**
+ * The remembered tab, if it still exists and still shows the composer. The
+ * URL cannot be read without the `tabs` permission, so the page is asked
+ * instead: only a live pop-out answers the ping.
+ */
+async function liveComposerTab(id: number): Promise<chrome.tabs.Tab | undefined> {
+  const tab = await browser.tabs.get(id).catch(() => undefined);
+  if (!tab) return undefined;
+  const alive = await browser.tabs
+    .sendMessage(id, { type: COMPOSER_PING })
+    .then(() => true)
+    .catch(() => false);
+  return alive ? tab : undefined;
+}
+
 async function openComposerTab(reload = false): Promise<void> {
   // ?popout=1 renders the composer at desk-width instead of the cramped
   // toolbar layout. Same flag the explicit pop-out button uses — see
@@ -380,8 +395,7 @@ async function openComposerTab(reload = false): Promise<void> {
   // even for an extension's own pages (query({ url }) matches nothing), so the
   // tab is remembered by id and checked with tabs.get, which needs no permission.
   const knownId = await sessionStorage().get<number>(COMPOSER_TAB_KEY);
-  const existing =
-    knownId === undefined ? undefined : await browser.tabs.get(knownId).catch(() => undefined);
+  const existing = knownId === undefined ? undefined : await liveComposerTab(knownId);
   if (existing?.id !== undefined) {
     await browser.tabs.update(existing.id, reload ? { url, active: true } : { active: true });
     if (existing.windowId !== undefined) {

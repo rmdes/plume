@@ -60,5 +60,21 @@ test("the composer checkbox switches the icon between popup and tab", async ({ b
   expect(reg.cur).toBeDefined();
   expect(reg.stored).toBe(reg.cur);
 
+  // The background pings the remembered tab before focusing it. A live
+  // pop-out answers; once the tab has navigated elsewhere nobody does, so the
+  // background knows to open a fresh composer instead of focusing that tab.
+  const ping = (id: number) =>
+    opts.evaluate(
+      (tabId) =>
+        chrome.tabs.sendMessage(tabId, { type: "composer-ping" }).then(
+          () => "answered",
+          () => "unanswered",
+        ),
+      id,
+    );
+  expect(await ping(reg.cur as number)).toBe("answered");
+  await pop.goto("about:blank");
+  expect(await ping(reg.cur as number)).toBe("unanswered");
+
   await ctx.close();
 });

@@ -52,16 +52,14 @@ export default defineConfig({
         "32": "icon/32.png",
       },
     },
-    // `_execute_action` is the MV3 reserved command name that opens the
-    // toolbar popup. Users can rebind via chrome://extensions/shortcuts
-    // (or about:addons → ⚙️ → Manage Extension Shortcuts on Firefox).
-    // Default keeps fingers on home row: Ctrl+Shift+P (Cmd+Shift+P on macOS).
     commands: {
-      // `_execute_action` is the MV3 reserved name that opens the toolbar
-      // popup. Alt+Shift+P avoids both Firefox's "Open Private Window"
+      // The reserved command that opens the toolbar popup is `_execute_action`
+      // on MV3 and `_execute_browser_action` on MV2, and WXT emits the key as
+      // written, so the Firefox build needs its own name or the shortcut is
+      // dead there. Alt+Shift+P avoids both Firefox's "Open Private Window"
       // (Ctrl+Shift+P) and Chrome's DevTools command palette. Users can
       // rebind via chrome://extensions/shortcuts or about:addons → ⚙️.
-      _execute_action: {
+      [manifestVersion === 3 ? "_execute_action" : "_execute_browser_action"]: {
         suggested_key: {
           default: "Alt+Shift+P",
           mac: "Alt+Shift+P",

@@ -8,6 +8,7 @@ import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import {
   applyComposerSurface,
+  COMPOSER_PING,
   COMPOSER_TAB_KEY,
   shouldOpenComposerInTab,
   TOUCH_ONLY_QUERY,
@@ -353,6 +354,13 @@ async function redirectTouchDeviceToTab(): Promise<boolean> {
  * page without the `tabs` permission.
  */
 async function registerComposerTab(): Promise<void> {
+  // Answer the background's ping while this page is the composer. Navigating
+  // the tab elsewhere unloads this listener, which is exactly the signal.
+  browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+    if ((message as { type?: unknown })?.type !== COMPOSER_PING) return false;
+    sendResponse(true);
+    return false;
+  });
   const tab = await browser.tabs.getCurrent();
   if (tab?.id !== undefined) await sessionStorage().set({ [COMPOSER_TAB_KEY]: tab.id });
 }

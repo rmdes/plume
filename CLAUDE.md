@@ -183,6 +183,7 @@ were only found from a user report (fixed in v1.3.1):
 | `chrome.*` returns promises | `chrome.*` is **callback-only**, returns `undefined` | `storage.local.get()` threw → popup init rejected → stuck on "Loading…" forever                                                                                |
 | `action`                    | `browserAction`                                      | `action.setBadgeText` undefined → `updateBadge()` rejected on every queue change                                                                               |
 | callback or promise         | **promise-only**, ignores a trailing callback        | `launchWebAuthFlow(details, cb)` never resolves → auth hangs forever                                                                                           |
+| `_execute_action` command   | `_execute_browser_action`                            | WXT emits the key as written → the keyboard shortcut is silently dead on Firefox (fixed in 1.7.3 by branching on `manifestVersion`)                            |
 
 Consequences for how to write code here:
 
