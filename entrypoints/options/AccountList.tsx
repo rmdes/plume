@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { browser } from "../../core/browser-api";
+import { applyComposerSurface } from "../../core/composer-surface";
 import type { TokenData } from "../../core/types";
 import { accountStore, defaultsStore } from "../../storage";
 import { ExtensionToggles } from "./ExtensionToggles";
@@ -12,17 +13,26 @@ export function AccountList({ onAddClick }: Props) {
   const [accounts, setAccounts] = useState<TokenData[]>([]);
   const [activeDomain, setActiveDomain] = useState<string | null>(null);
   const [tabSignIn, setTabSignIn] = useState(false);
+  const [composerInTab, setComposerInTab] = useState(false);
 
   async function refresh() {
     const store = accountStore();
     setAccounts(await store.list());
     setActiveDomain(await store.getDefaultDomain());
-    setTabSignIn((await defaultsStore().get()).tabSignIn ?? false);
+    const defaults = await defaultsStore().get();
+    setTabSignIn(defaults.tabSignIn ?? false);
+    setComposerInTab(defaults.composerInTab ?? false);
   }
 
   async function toggleTabSignIn(value: boolean) {
     setTabSignIn(value);
     await defaultsStore().setTabSignIn(value);
+  }
+
+  async function toggleComposerInTab(value: boolean) {
+    setComposerInTab(value);
+    await defaultsStore().setComposerInTab(value);
+    await applyComposerSurface(value);
   }
 
   useEffect(() => {
@@ -66,6 +76,18 @@ export function AccountList({ onAddClick }: Props) {
         <span style={{ display: "block", color: "#666", fontSize: 12 }}>
           Plume does this on its own where the browser has no sign-in window, such as Firefox for
           Android. Turn it on if the popup window never appears or closes at once.
+        </span>
+      </label>
+      <label style={{ display: "block", margin: "8px 0", fontSize: 13 }}>
+        <input
+          type="checkbox"
+          checked={composerInTab}
+          onChange={(e) => void toggleComposerInTab((e.currentTarget as HTMLInputElement).checked)}
+        />{" "}
+        Open the composer in a tab instead of the toolbar popup
+        <span style={{ display: "block", color: "#666", fontSize: 12 }}>
+          Plume does this on its own on touch-only devices, where the popup closes as soon as the
+          keyboard appears.
         </span>
       </label>
       {accounts.length === 0 ? (

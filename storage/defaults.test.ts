@@ -44,4 +44,12 @@ describe("DefaultsStore", () => {
     await store.setTabSignIn(false);
     expect((await store.get()).tabSignIn).toBe(false);
   });
+
+  it("composerInTab is automatic (undefined) until set", async () => {
+    expect((await store.get()).composerInTab).toBeUndefined();
+    await store.setComposerInTab(true);
+    expect((await store.get()).composerInTab).toBe(true);
+    await store.setComposerInTab(false);
+    expect((await store.get()).composerInTab).toBe(false);
+  });
 });

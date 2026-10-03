@@ -17,6 +17,11 @@ export interface UserDefaults {
   debugLogging?: boolean;
   /** Force the tab-based sign-in even where `identity.launchWebAuthFlow` exists. */
   tabSignIn?: boolean;
+  /**
+   * Where the toolbar icon opens the composer: `true` a tab, `false` the
+   * popup, unset means "decide from the device" (touch-only → tab).
+   */
+  composerInTab?: boolean;
 }
 
 const EMPTY: UserDefaults = {
@@ -59,5 +64,9 @@ export class DefaultsStore {
 
   async setTabSignIn(value: boolean): Promise<void> {
     await this.patch({ tabSignIn: value });
+  }
+
+  async setComposerInTab(value: boolean): Promise<void> {
+    await this.patch({ composerInTab: value });
   }
 }

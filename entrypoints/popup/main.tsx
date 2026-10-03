@@ -6,7 +6,13 @@ import { log, setLogContext } from "../../core/logger";
 import { refreshToken } from "../../core/indieauth";
 import { fetchAndCacheServerConfig } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
-import { accountStore, draftScope, draftStore, sessionStorage } from "../../storage";
+import {
+  applyComposerSurface,
+  COMPOSER_TAB_KEY,
+  shouldOpenComposerInTab,
+  TOUCH_ONLY_QUERY,
+} from "../../core/composer-surface";
+import { accountStore, defaultsStore, draftScope, draftStore, sessionStorage } from "../../storage";
 import { Composer } from "./Composer";
 import { DraftPanel } from "./DraftPanel";
 
@@ -24,6 +30,11 @@ const isPopout =
   typeof window !== "undefined" &&
   new URLSearchParams(window.location.search).get("popout") === "1";
 
+function openInTab(): void {
+  void browser.tabs.create({ url: browser.runtime.getURL("popup.html?popout=1") });
+  window.close();
+}
+
 function Popup() {
   const [account, setAccount] = useState<TokenData | null | undefined>(undefined);
   const [accounts, setAccounts] = useState<TokenData[]>([]);
@@ -34,11 +45,6 @@ function Popup() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showDrafts, setShowDrafts] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
-
-  function openInTab() {
-    void browser.tabs.create({ url: browser.runtime.getURL("popup.html?popout=1") });
-    window.close();
-  }
 
   useEffect(() => {
     (async () => {
@@ -312,7 +318,53 @@ function Popup() {
 
 setLogContext("popup");
 
+/**
+ * First open on a touch-only device: Chromium on Android closes this popup
+ * as soon as the keyboard appears, so switch the icon to the tab surface and
+ * open the tab now. The stored preference means this runs once per profile;
+ * afterwards the icon tap goes straight to the tab via the background. Not
+ * in pop-out mode, which is already the tab.
+ */
+async function redirectTouchDeviceToTab(): Promise<boolean> {
+  if (isPopout) return false;
+  const { composerInTab } = await defaultsStore().get();
+  // Only the automatic case is decided here; an explicit choice was already
+  // applied by the background, so the popup being open means "popup".
+  if (composerInTab !== undefined) return false;
+  const touchOnly = window.matchMedia(TOUCH_ONLY_QUERY).matches;
+  if (!shouldOpenComposerInTab(composerInTab, touchOnly)) return false;
+  try {
+    await defaultsStore().setComposerInTab(true);
+    await applyComposerSurface(true);
+  } catch (e) {
+    // Still open the tab: the user must never be stuck. The next tap retries.
+    log.warn("could not remember the tab composer preference", e);
+  }
+  openInTab();
+  return true;
+}
+
+/**
+ * A pop-out registers itself so the next icon tap focuses this tab instead of
+ * opening another, whichever opener created it (background, the ↗ button, or
+ * the first-run touch redirect). `tabs.getCurrent()` works from an extension
+ * page without the `tabs` permission.
+ */
+async function registerComposerTab(): Promise<void> {
+  const tab = await browser.tabs.getCurrent();
+  if (tab?.id !== undefined) await sessionStorage().set({ [COMPOSER_TAB_KEY]: tab.id });
+}
+
 const root = document.getElementById("app");
 if (root) {
-  render(<Popup />, root);
+  if (isPopout)
+    registerComposerTab().catch((e) => log.warn("could not register the composer tab", e));
+  redirectTouchDeviceToTab()
+    .catch((e) => {
+      log.warn("touch-device check failed", e);
+      return false;
+    })
+    .then((redirected) => {
+      if (!redirected) render(<Popup />, root);
+    });
 }

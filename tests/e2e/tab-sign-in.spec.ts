@@ -23,17 +23,24 @@ test("tab sign-in connects an account without the identity window", async ({ bro
 
   await opts.getByRole("button", { name: "+ Add account" }).click();
   await opts.getByLabel("Your site URL").fill("http://localhost:18750/");
-  const loginTab = ctx.waitForEvent("page");
+
   await opts.getByRole("button", { name: "Authorize" }).click();
 
-  // The mock authorization endpoint auto-approves, so the tab lands on the
-  // callback page at once; the background finishes the exchange and closes it.
-  const tab = await loginTab;
-  await expect.poll(() => tab.isClosed(), { timeout: 10_000 }).toBe(true);
-
+  // The mock authorization endpoint auto-approves, so the login tab lands on
+  // the callback page at once; the background finishes the exchange and
+  // closes that tab. The account appearing proves the whole round trip (the
+  // code only arrives through the callback), and no page may be left on the
+  // callback URL afterwards. Not `waitForEvent("page")`: on first install the
+  // background also opens welcome.html, and under load that can be the next
+  // page to appear.
   const dialog = opts.getByRole("dialog", { name: "Add Micropub account" });
-  await expect(dialog).toBeHidden({ timeout: 5000 });
+  await expect(dialog).toBeHidden({ timeout: 10_000 });
   await expect(opts.getByText("localhost")).toBeVisible();
+  await expect
+    .poll(() => ctx.pages().filter((p) => p.url().startsWith(CALLBACK)).length, {
+      timeout: 5_000,
+    })
+    .toBe(0);
 
   await ctx.close();
 });
