@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Phones were not detected, so the composer kept opening in the popup that the keyboard closes.** Plume decides where the icon opens the composer from a touch-only media query, and inside Vivaldi for Android's popup that query reports a desktop, so the automatic switch to the tab never happened and the checkbox had to be ticked by hand. The extension platform's own "Android" signal now counts as well, so the first tap on a phone lands in the composer tab with nothing to configure. The debug log records the decision. The popup itself still closes when the keyboard opens on Chromium-based Android browsers; that is a browser bug, reported upstream, and the tab is the mitigation until it is fixed.
+- **Switching post type no longer leaks the previous type's target URL into the post.** Pasting a URL into the Bookmark composer, switching to Article and posting still sent `bookmark-of`, and Micropub servers derive the post type from the properties they receive, so the article was filed as a bookmark; Bookmark to Reply leaked both targets. The composer now keeps one target field populated, the one the selected type uses, and clears the rest. The typed URL is kept, so switching back restores it, and drafts of a post that changed type file under the right scope.
+
 ## [1.7.3] — 2026-10-03
 
 ### Fixed

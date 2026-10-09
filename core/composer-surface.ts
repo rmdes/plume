@@ -19,6 +19,17 @@ export const COMPOSER_PING = "composer-ping";
 export const TOUCH_ONLY_QUERY = "(hover: none) and (pointer: coarse)";
 
 /**
+ * Whether this is a touch-only device: the media query says so, or the
+ * extension platform says Android. The second signal exists because Vivaldi
+ * 8.2 for Android hosts the popup in a frame that reports hover and a fine
+ * pointer, so the query alone missed the phone (1.7.3). `runtime.getPlatformInfo`
+ * is a standard WebExtension API on both engines; still no user-agent sniffing.
+ */
+export function isTouchOnlyDevice(mediaMatches: boolean, os: string | undefined): boolean {
+  return mediaMatches || os === "android";
+}
+
+/**
  * Where the composer opens when the toolbar icon is tapped.
  *
  * Chromium dismisses an action popup the moment focus leaves it, and on

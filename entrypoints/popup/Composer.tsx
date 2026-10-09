@@ -8,6 +8,7 @@ import { SyndicateChips } from "../../components/SyndicateChips";
 import { TypePicker } from "../../components/TypePicker";
 import { MicropubClient } from "../../core/micropub-client";
 import { log } from "../../core/logger";
+import { TARGET_TYPES, targetFields } from "../../core/post-target";
 import { fetchAndCacheServerConfig, serverPostTypeLabels } from "../../core/server-config";
 import type { CreateOptions, PostType, ServerConfig, TokenData } from "../../core/types";
 import { accountStore, defaultsStore, draftScope, queueStore } from "../../storage";
@@ -42,8 +43,6 @@ interface Props {
   onError: (message: string) => void;
 }
 
-const TARGET_TYPES: PostType[] = ["reply", "bookmark", "like", "repost", "quote"];
-
 function targetPlaceholder(type: PostType): string {
   switch (type) {
     case "reply":
@@ -59,13 +58,6 @@ function targetPlaceholder(type: PostType): string {
     default:
       return "URL";
   }
-}
-
-function targetFieldFor(type: PostType): keyof CreateOptions {
-  if (type === "reply" || type === "quote") return "inReplyTo";
-  if (type === "bookmark") return "bookmarkOf";
-  if (type === "like") return "likeOf";
-  return "repostOf";
 }
 
 export function Composer({
@@ -112,10 +104,11 @@ export function Composer({
     seed?.inReplyTo ?? seed?.bookmarkOf ?? seed?.likeOf ?? seed?.repostOf ?? "",
   );
 
+  // Every target field, every type — see `targetFields`. Patching only the
+  // active one left the previous type's URL in state, and the payload is the
+  // whole state.
   useEffect(() => {
-    if (!TARGET_TYPES.includes(state.type)) return;
-    const field = targetFieldFor(state.type);
-    patch({ [field]: targetUrl } as Partial<typeof state>);
+    patch(targetFields(state.type, targetUrl));
   }, [targetUrl, state.type, patch]);
 
   const scope = draftScope(state);
