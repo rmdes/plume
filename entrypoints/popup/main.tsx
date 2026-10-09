@@ -10,6 +10,7 @@ import {
   applyComposerSurface,
   COMPOSER_PING,
   COMPOSER_TAB_KEY,
+  isTouchOnlyDevice,
   shouldOpenComposerInTab,
   TOUCH_ONLY_QUERY,
 } from "../../core/composer-surface";
@@ -334,7 +335,14 @@ async function redirectTouchDeviceToTab(): Promise<boolean> {
   // Only the automatic case is decided here; an explicit choice was already
   // applied by the background, so the popup being open means "popup".
   if (composerInTab !== undefined) return false;
-  const touchOnly = window.matchMedia(TOUCH_ONLY_QUERY).matches;
+  const mediaMatches = window.matchMedia(TOUCH_ONLY_QUERY).matches;
+  const os = await browser.runtime
+    .getPlatformInfo()
+    .then((info) => info.os as string)
+    .catch(() => undefined);
+  const touchOnly = isTouchOnlyDevice(mediaMatches, os);
+  // Recorded so a "the popup still opens on my phone" report says why.
+  log.info("composer surface decided", { mediaMatches, os, touchOnly });
   if (!shouldOpenComposerInTab(composerInTab, touchOnly)) return false;
   try {
     await defaultsStore().setComposerInTab(true);
