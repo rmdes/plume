@@ -1,6 +1,6 @@
 # Chrome Web Store listing notes
 
-Last updated: 2026-09-30 (v1.7.0). Not shipped in the zip; `bun run zip` packs `.output/` only.
+Last updated: 2026-10-10 (v1.7.4). Not shipped in the zip; `bun run zip` packs `.output/` only.
 
 Item ID: `hcphdjeoolimpjjekegpobkhoealiige`. AMO listing: `plume-micropub-client`.
 
@@ -45,5 +45,9 @@ Plume sends data only to the site the user connected, and only what the user cho
 
 ## Version history
 
+- 1.7.4 (2026-10-09): phones are detected through the platform API too, so the first tap opens the composer tab without a setting; switching post type no longer leaks the previous target URL. No permission change.
+- 1.7.3 (2026-10-03): keyboard shortcut named correctly for Firefox; a composer tab navigated elsewhere is no longer focused. No permission change.
+- 1.7.2 (2026-10-03): the composer tab fits a phone screen. No permission change.
+- 1.7.1 (2026-10-03): the toolbar icon opens the composer as a tab on touch-only devices, with a settings checkbox to force either surface. No permission change.
 - 1.7.0 (2026-09-30): tab-based sign-in for browsers without the identity API; adds the callback-page content script (new host permission above). Existing installs are disabled until the user re-approves the new permission. Also: a hint when a browser never shows the site-access prompt (Vivaldi 8.2 for Android).
 - 1.6.2 (2026-08-16): drafts reachable from the composer header.
