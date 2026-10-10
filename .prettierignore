@@ -7,3 +7,5 @@ test-results
 bun.lock
 *.d.ts
 .superpowers/
+coverage
+coverage
