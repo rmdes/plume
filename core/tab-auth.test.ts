@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { AccountStore } from "../storage/accounts";
 import { FakeBrowserStorage } from "../storage/browser-storage";
 import { PendingAuthStore } from "../storage/pending-auth";
-import { completeTabAuth } from "./tab-auth";
+import { completeTabAuth, type TabAuthDeps } from "./tab-auth";
 
 const record = {
   state: "st",
@@ -33,7 +33,7 @@ describe("completeTabAuth", () => {
   let local: FakeBrowserStorage;
   let pending: PendingAuthStore;
   let accounts: AccountStore;
-  let fetchConfig: ReturnType<typeof vi.fn>;
+  let fetchConfig: Mock<TabAuthDeps["fetchConfig"]>;
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -41,7 +41,7 @@ describe("completeTabAuth", () => {
     local = new FakeBrowserStorage();
     pending = new PendingAuthStore(session);
     accounts = new AccountStore(local);
-    fetchConfig = vi.fn().mockResolvedValue({});
+    fetchConfig = vi.fn<TabAuthDeps["fetchConfig"]>().mockResolvedValue({});
   });
 
   it("exchanges the code, stores the account, fetches config, and replies with the domain", async () => {
